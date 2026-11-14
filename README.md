@@ -1,3 +1,5 @@
+<img width="660" height="416" alt="下载" src="https://github.com/user-attachments/assets/83cd0ea5-dfb9-442a-8fd4-85934f9270a5" />
+
 # 姓氏繁衍 H5（TigerFRM）
 
 选一个姓，看它从得姓、扩散、迁徙到繁衍的两千年。34 格共用百年时间轴，19 次大型迁徙事件，纯点密度可视化。
