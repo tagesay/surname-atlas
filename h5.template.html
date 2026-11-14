@@ -215,6 +215,29 @@ window.__H5_CONFIG__ = {
     #lvTag{top:164px;left:28px}
     .grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr))}
   }
+
+  /* ===== 2.0 姓氏来历 / 迁徙常驻卡（不遮挡地图：手机顶部小卡 · 电脑右侧栏） ===== */
+  #introPanel{position:fixed;z-index:6;display:none;
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    backdrop-filter:blur(9px);box-shadow:0 4px 18px rgba(20,32,44,.12);
+    padding:9px 12px 10px;font-size:12px;line-height:1.5;color:#26313d}
+  #introPanel.show{display:block}
+  #introPanel .ip-h{font-size:11px;letter-spacing:.06em;color:var(--sub);font-weight:700;margin-bottom:4px}
+  #introPanel .ip-tag{display:inline-block;background:#fdeceb;color:#a72a20;border-radius:4px;
+    font-size:9.5px;font-weight:700;padding:1px 6px;margin-right:6px;vertical-align:1px}
+  #introPanel .ip-b{margin:0 0 5px}
+  #introPanel .ip-w{font-size:11px;color:var(--sub);margin:0 0 5px}
+  #introPanel .ip-m{margin:0}
+  /* 手机竖屏：顶部小卡，置于字标/年代/等级标之下，不挡地图中央；超长可滚 */
+  @media (max-aspect-ratio:1/1){
+    #introPanel{left:10px;right:10px;top:calc(62px + clamp(46px,15vw,80px) + 34px);
+      max-height:24vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  }
+  /* 电脑横屏：右侧固定栏，完整展示来历 + 郡望 + 迁徙 */
+  @media (min-aspect-ratio:1/1){
+    #introPanel{right:16px;top:132px;width:min(340px,33vw);max-height:76vh;overflow-y:auto}
+    #introPanel .ip-b{font-size:12.5px}
+  }
 </style>
 </head>
 <body>
@@ -233,6 +256,8 @@ window.__H5_CONFIG__ = {
   <div id="era"><div id="eraMain"></div><div id="eraSub"></div></div>
   <div id="lvTag"></div>
   <section id="eventPanel"></section>
+
+  <section id="introPanel"></section>
 
   <div id="ctrl">
     <div id="scrub"><div id="scrubBar"></div><div id="scrubFill"></div><div id="scrubKnob"></div></div>
@@ -749,7 +774,7 @@ window.__H5_CONFIG__ = {
     if(location.hash!=='#'+encodeURIComponent(ch)){
       try{ history.replaceState(null,'','#'+encodeURIComponent(ch)); }catch(e){ location.hash=encodeURIComponent(ch); }
     }
-    renderInfo(); updateShare();
+    renderInfo(); renderIntro(); updateShare();
     render(); renderGrids();
     if(!noPlay) play();
     return true;
@@ -903,6 +928,37 @@ window.__H5_CONFIG__ = {
       +'公安部《全国姓名报告》系列、台湾省内政部户政司《全国姓名统计分析》并列展示，'
       +'不同口径不相加、不互相校验。</p></div>';
     $('infoBody').innerHTML=h;
+  }
+
+  /* ---------- 2.0 常驻来历 / 迁徙卡 ---------- */
+  function renderIntro(){
+    var p=$('introPanel'); if(!p) return;
+    var ch=state.ch, r=state.row||{}, fm=(C.fullMeta&&C.fullMeta[ch])||null;
+    if(ch==='肖'){
+      p.innerHTML='<div class="ip-h">肖 · 与萧同源</div>'
+        +'<div class="ip-b">「肖」多为「萧」的二简字写法，1986 年废止但沿用至今；二者现为分开登记的两个姓。正字「萧」的得姓与郡望见萧页。</div>';
+      p.classList.add('show'); return;
+    }
+    var html='';
+    if(fm){
+      var o=fm.origin||{};
+      var wang=fm.wang||[]; if(typeof wang==='string') wang=[wang];
+      html+='<div class="ip-h">'+esc(ch)+' 姓 · 来历与迁徙</div>';
+      if(o.region||o.dynasty) html+='<div class="ip-b"><span class="ip-tag">得姓</span>'+esc((o.region||'')+(o.dynasty?('（'+o.dynasty+'）'):''))+'</div>';
+      if(o.basis) html+='<div class="ip-b">'+esc(o.basis)+'</div>';
+      if(wang.length) html+='<div class="ip-w"><span class="ip-tag">郡望</span>'+esc(wang.join('、'))+'</div>';
+      if(fm.migration) html+='<div class="ip-m"><span class="ip-tag">迁徙</span>'+esc(fm.migration)+'</div>';
+    } else {
+      var evs=r.ev||[];
+      html+='<div class="ip-h">'+esc(ch)+' 姓 · 官方结论</div>';
+      if(evs.length){
+        html+='<div class="ip-b">'+esc(evs.slice(0,2).map(function(x){var a=x.split(':');return (a[1]||'').trim();}).filter(Boolean).join('；'))+'</div>';
+      } else {
+        html+='<div class="ip-b">本姓暂无逐姓史料，演示共用迁徙骨架。</div>';
+      }
+    }
+    p.innerHTML=html;
+    p.classList.toggle('show', !!html);
   }
 
   /* ---------- 微信 JS-SDK 分享 ---------- */
