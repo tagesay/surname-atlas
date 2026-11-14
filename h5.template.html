@@ -23,7 +23,11 @@ window.__H5_CONFIG__ = {
        公网 + 暂无 key     → none（3137 个行政单元中心点构成「有人区」骨架，静默降级）
      显式把 mapMode 设成 'none' 可强制无底图。 */
   mapMode: 'auto',
-  tmapKey: '3GBBZ-TPN6B-UY7UR-JJPOW-NYKN3-ZRF62',
+  /* 公开仓库不含密钥。部署 / 使用时二选一提供腾讯地图 Web 端 Key：
+     ① 网址带 ?tk=你的Key（推荐，便于分享、不落盘）；
+     ② 本地构建前把下面一行填回你的 Key。
+     若都没有，地图会静默降级为「有人区」行政点骨架，不影响其他功能。 */
+  tmapKey: '',
   /* 腾讯地图「安全密钥」(securityJsCode)：近年申请的 Key 必须配套安全密钥，
      否则即便 Key 有效、域名已加白名单，底图也会鉴权失败、静默不显示。
      留空则不加（兼容老 Key）；也可网址带 ?tsk=你的安全密钥 自助注入。 */
@@ -142,6 +146,9 @@ window.__H5_CONFIG__ = {
   #searchBox{width:100%;border:1px solid var(--line);border-radius:9px;background:#f6f8fa;
     padding:10px 12px;font-size:15px;outline:none;color:var(--ink)}
   #searchBox:focus{border-color:var(--hot);background:#fff}
+  /* 选姓面板：搜索框固定在面板顶（不随列表滚动/翻页被顶掉） */
+  .pickHead{position:relative;padding:10px 14px 9px;border-bottom:1px solid var(--line);
+    background:#fff;z-index:2;box-shadow:0 2px 6px rgba(20,32,44,.04)}
   .secTitle{font-size:11px;letter-spacing:.16em;color:var(--sub);font-weight:700;margin:16px 0 8px}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:7px}
   .sname{position:relative;border:1px solid var(--line);background:#fff;border-radius:8px;
@@ -216,26 +223,32 @@ window.__H5_CONFIG__ = {
     .grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr))}
   }
 
-  /* ===== 2.0 姓氏来历 / 迁徙常驻卡（不遮挡地图：手机顶部小卡 · 电脑右侧栏） ===== */
+  /* ===== 2.0 姓氏来历 / 迁徙常驻卡（可拖动，由用户自行摆放不碍眼的位置） ===== */
   #introPanel{position:fixed;z-index:6;display:none;
     background:var(--card);border:1px solid var(--line);border-radius:10px;
     backdrop-filter:blur(9px);box-shadow:0 4px 18px rgba(20,32,44,.12);
     padding:9px 12px 10px;font-size:12px;line-height:1.5;color:#26313d}
   #introPanel.show{display:block}
-  #introPanel .ip-h{font-size:11px;letter-spacing:.06em;color:var(--sub);font-weight:700;margin-bottom:4px}
+  #introPanel.dragging{cursor:grabbing;box-shadow:0 10px 30px rgba(20,32,44,.22);opacity:.96}
+  #introPanel .ip-h{font-size:11px;letter-spacing:.06em;color:var(--sub);font-weight:700;
+    margin-bottom:4px;cursor:move;user-select:none;-webkit-user-select:none;touch-action:none;
+    display:flex;align-items:center;gap:6px}
+  #introPanel .ip-h::after{content:'⠿ 可拖动';font-size:9px;color:var(--sub);font-weight:400;
+    opacity:.7;margin-left:auto;letter-spacing:0}
   #introPanel .ip-tag{display:inline-block;background:#fdeceb;color:#a72a20;border-radius:4px;
     font-size:9.5px;font-weight:700;padding:1px 6px;margin-right:6px;vertical-align:1px}
   #introPanel .ip-b{margin:0 0 5px}
   #introPanel .ip-w{font-size:11px;color:var(--sub);margin:0 0 5px}
   #introPanel .ip-m{margin:0}
-  /* 手机竖屏：顶部小卡，置于字标/年代/等级标之下，不挡地图中央；超长可滚 */
+  /* 手机竖屏：默认顶部小卡，置于字标/年代/等级标之下，不挡地图中央；超长可滚 */
   @media (max-aspect-ratio:1/1){
     #introPanel{left:10px;right:10px;top:calc(62px + clamp(46px,15vw,80px) + 34px);
-      max-height:24vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+      max-height:22vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
   }
-  /* 电脑横屏：右侧固定栏，完整展示来历 + 郡望 + 迁徙 */
+  /* 电脑横屏：默认右下（东海/日本一带），不挡华西/华北数据密集区 */
   @media (min-aspect-ratio:1/1){
-    #introPanel{right:16px;top:132px;width:min(340px,33vw);max-height:76vh;overflow-y:auto}
+    #introPanel{right:16px;top:auto;bottom:calc(84px + var(--safe));width:min(340px,33vw);
+      max-height:62vh;overflow-y:auto}
     #introPanel .ip-b{font-size:12.5px}
   }
 </style>
@@ -273,8 +286,10 @@ window.__H5_CONFIG__ = {
 
   <div class="sheet" id="picker">
     <div class="sh"><h2>选一个姓</h2><span class="sp"></span><button class="btn" id="btnPickClose">关闭</button></div>
-    <div class="body">
+    <div class="pickHead">
       <input id="searchBox" type="search" placeholder="输入汉字 / 拼音 / 首字母，如 李、li、l" autocomplete="off">
+    </div>
+    <div class="body">
       <div class="secTitle">热门姓氏</div>
       <div class="grid" id="hotGrid"></div>
       <div class="secTitle" id="allTitle">全部姓氏</div>
@@ -961,6 +976,66 @@ window.__H5_CONFIG__ = {
     p.classList.toggle('show', !!html);
   }
 
+  /* ---------- 介绍卡可拖动（鼠标 + 触屏统一用 Pointer 事件） ---------- */
+  function initIntroDrag(){
+    var p=$('introPanel'); if(!p) return;
+    var dragging=false, sx=0, sy=0, ox=0, oy=0, pid=null;
+    function clamp(){
+      var w=p.offsetWidth, h=p.offsetHeight; if(!w) return;
+      var left=parseFloat(p.style.left)||0, top=parseFloat(p.style.top)||0;
+      left=Math.max(4, Math.min(window.innerWidth - w - 4, left));
+      top =Math.max(4, Math.min(window.innerHeight - h - 4, top));
+      p.style.left=left+'px'; p.style.top=top+'px';
+    }
+    function down(e){
+      if(!e.target.closest('.ip-h')) return;          // 仅抓标题栏拖动
+      if(e.target.closest('button,a')) return;
+      dragging=true; pid=e.pointerId;
+      var r=p.getBoundingClientRect();
+      p.style.left=r.left+'px'; p.style.top=r.top+'px'; p.style.right='auto';
+      sx=e.clientX; sy=e.clientY; ox=r.left; oy=r.top;
+      p.classList.add('dragging');
+      try{ p.setPointerCapture(pid); }catch(_){}
+      e.preventDefault();
+    }
+    function move(e){
+      if(!dragging) return;
+      var nx=ox+(e.clientX-sx), ny=oy+(e.clientY-sy);
+      p.style.left=nx+'px'; p.style.top=ny+'px';
+    }
+    function up(){
+      if(!dragging) return;
+      dragging=false; p.classList.remove('dragging');
+      clamp();
+      try{ saveIntroPos(); }catch(_){}
+    }
+    function saveIntroPos(){
+      localStorage.setItem('h5_intro_pos', JSON.stringify({left:p.style.left, top:p.style.top}));
+    }
+    function loadIntroPos(){
+      try{
+        var s=localStorage.getItem('h5_intro_pos'); if(!s) return;
+        var o=JSON.parse(s);
+        if(o&&o.left){ p.style.left=o.left; p.style.top=o.top; p.style.right='auto'; }
+      }catch(_){}
+    }
+    p.addEventListener('pointerdown', down);
+    p.addEventListener('pointermove', move);
+    p.addEventListener('pointerup', up);
+    p.addEventListener('pointercancel', up);
+    window.addEventListener('resize', clamp);
+    // 双击标题栏复位到默认位置（清除内联样式，交还 CSS 媒体查询）
+    p.addEventListener('dblclick', function(e){
+      if(!e.target.closest('.ip-h')) return;
+      p.style.left=''; p.style.top=''; p.style.right='';
+      try{ localStorage.removeItem('h5_intro_pos'); }catch(_){}
+    });
+    window.addEventListener('load', loadIntroPos);
+    // 每次选姓后若已存过位置，应用之
+    var _orig=renderIntro;
+    renderIntro=function(){ _orig(); loadIntroPos(); };
+  }
+
   /* ---------- 微信 JS-SDK 分享 ---------- */
   function shareData(){
     var ch=state.ch, r=state.row||{}, cfg=CFG;
@@ -1007,6 +1082,7 @@ window.__H5_CONFIG__ = {
 
   /* ---------- 交互绑定 ---------- */
   function bind(){
+    initIntroDrag();
     $('btnPick').addEventListener('click',function(){ renderGrids(); openSheet('picker'); });
     $('btnPickClose').addEventListener('click',function(){ closeSheet('picker'); });
     $('btnInfo').addEventListener('click',function(){ renderInfo(); openSheet('info'); });

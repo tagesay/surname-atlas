@@ -5,7 +5,10 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const FILE = 'D:/WorkBuddy/2026-11-08-14-21-37/publish/index.html';
-const ONLINE = 'https://surname-atlas.app.workbuddy.host/?sharecode=YNRVFHTVQT';
+// 线上发布版地址：分享码为私密发布参数，请用环境变量 WB_SHARECODE 注入；
+// 仓库内不内置具体分享码（占位符仅作示例），本地校验前执行 set WB_SHARECODE=你的码
+const SHARECODE = process.env.WB_SHARECODE || 'YOUR_SHARECODE';
+const ONLINE = 'https://surname-atlas.app.workbuddy.host/?sharecode=' + SHARECODE;
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 
 let pass = 0, fail = 0;

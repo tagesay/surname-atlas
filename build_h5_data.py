@@ -248,7 +248,7 @@ def main():
     # 点数示意」的专属帧与依据元数据；角标统一由 badgeMap 控制（史/官/家 并集）。
     badge_map = {}
     geo_surnames = []
-    for _gp in ("genealogy_batch1.json", "genealogy_batch2.json", "genealogy_batch3.json", "genealogy_batch4.json", "genealogy_batch5.json", "genealogy_batch6.json"):
+    for _gp in ("genealogy_batch1.json", "genealogy_batch2.json", "genealogy_batch3.json", "genealogy_batch4.json", "genealogy_batch5.json", "genealogy_batch6.json", "genealogy_batch7.json"):
         _p = ROOT / _gp
         if _p.exists():
             _g = json.loads(_p.read_text(encoding="utf-8"))
