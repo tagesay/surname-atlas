@@ -15,6 +15,17 @@ cinema.html
 *.genie
 bgm/
 h5data/
+# 以下为脚本生成的汇总数据（可由 build_century_atlas.py / compile_genealogy.py 重建）
+century_atlas.json
+genealogy.json
+
+# ===== 视频 / 打包产物（二进制，不入库）=====
+video_out/
+*.mp4
+*.zip
+
+# ===== 临时渲染/测试产物（空壳 html）=====
+[0-9]*.html
 
 # ===== 默认排除所有下划线开头的调试/临时/回滚文件 =====
 _*/
