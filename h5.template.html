@@ -981,6 +981,9 @@ window.__H5_CONFIG__ = {
     var p=$('introPanel'); if(!p) return;
     var dragging=false, sx=0, sy=0, ox=0, oy=0, pid=null;
     function clamp(){
+      /* 没拖动过就别夹取：否则窗口一缩放，parseFloat(p.style.left)||0 会把
+         仍由 CSS 定位的卡片强行拽到左上角。 */
+      if(!p.style.left && !p.style.top) return;
       var w=p.offsetWidth, h=p.offsetHeight; if(!w) return;
       var left=parseFloat(p.style.left)||0, top=parseFloat(p.style.top)||0;
       left=Math.max(4, Math.min(window.innerWidth - w - 4, left));
@@ -992,6 +995,13 @@ window.__H5_CONFIG__ = {
       if(e.target.closest('button,a')) return;
       dragging=true; pid=e.pointerId;
       var r=p.getBoundingClientRect();
+      /* 桌面 CSS 用 bottom 定位。只清 right 会让 top 与 bottom 同时生效，
+         浏览器按 top+height+bottom=视口反推高度，卡片就被「拉长」。
+         改 left/top 前必须把 bottom 也置为 auto。 */
+      p.style.bottom='auto';
+      /* 手机 CSS 靠 left+right 撑宽度，清掉 right 后会按内容重算而跳宽，
+         拖动前先把当前宽度锁死。 */
+      p.style.width=r.width+'px';
       p.style.left=r.left+'px'; p.style.top=r.top+'px'; p.style.right='auto';
       sx=e.clientX; sy=e.clientY; ox=r.left; oy=r.top;
       p.classList.add('dragging');
@@ -1016,7 +1026,14 @@ window.__H5_CONFIG__ = {
       try{
         var s=localStorage.getItem('h5_intro_pos'); if(!s) return;
         var o=JSON.parse(s);
-        if(o&&o.left){ p.style.left=o.left; p.style.top=o.top; p.style.right='auto'; }
+        if(o&&o.left){
+          /* 位置恢复同样要锁宽：否则 left 生效、right 变 auto 后，
+             手机端会按 shrink-to-fit 把卡片重新撑宽。 */
+          var w0=p.offsetWidth;
+          p.style.bottom='auto';
+          if(w0) p.style.width=w0+'px';
+          p.style.left=o.left; p.style.top=o.top; p.style.right='auto';
+        }
       }catch(_){}
     }
     p.addEventListener('pointerdown', down);
@@ -1027,7 +1044,7 @@ window.__H5_CONFIG__ = {
     // 双击标题栏复位到默认位置（清除内联样式，交还 CSS 媒体查询）
     p.addEventListener('dblclick', function(e){
       if(!e.target.closest('.ip-h')) return;
-      p.style.left=''; p.style.top=''; p.style.right='';
+      p.style.left=''; p.style.top=''; p.style.right=''; p.style.bottom=''; p.style.width='';
       try{ localStorage.removeItem('h5_intro_pos'); }catch(_){}
     });
     window.addEventListener('load', loadIntroPos);
