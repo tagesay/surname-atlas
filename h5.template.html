@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>姓氏繁衍 · 你的姓，走过两千年｜TigerFRM</title>
+<meta name="description" content="选一个姓，看它从得姓、扩散、迁徙到繁衍的两千年。34 格共用百年时间轴，19 次大型迁徙事件，纯点密度可视化。">
+<meta property="og:title" content="姓氏繁衍 · 你的姓，走过两千年">
+<meta property="og:description" content="选一个姓，看它从得姓、扩散、迁徙到繁衍的两千年。">
+<script type="text/javascript">
+/* ============ 公众号部署配置：改这里即可，不用动下面的渲染代码 ============ */
+window.__H5_CONFIG__ = {
+  brand: 'TigerFRM',
+  /* 底图 = 腾讯地图 JavaScript API GL 的「默认矢量底图」，
+     即腾讯位置服务发布的现行标准地图（官方发布、带审图号）。
+     本项目只在其上叠加离散点，不绘制、不修改任何国界 / 省界 / 历史疆域，不做分省设色。
+
+     底图模式由 resolveMapMode() 自动判定，一般不用手改：
+       本机预览            → proxy（走 WorkBuddy 密钥代理，前端不出现 key）
+       公网 + 有 key       → key（自己的 Web 端 Key）
+       网址带 ?tk=你的Key  → key（自助注入，优先级最高，不必改文件）
+       公网 + 暂无 key     → none（3137 个行政单元中心点构成「有人区」骨架，静默降级）
+     显式把 mapMode 设成 'none' 可强制无底图。 */
+  mapMode: 'auto',
+  tmapKey: '3GBBZ-TPN6B-UY7UR-JJPOW-NYKN3-ZRF62',
+  /* 腾讯地图「安全密钥」(securityJsCode)：近年申请的 Key 必须配套安全密钥，
+     否则即便 Key 有效、域名已加白名单，底图也会鉴权失败、静默不显示。
+     留空则不加（兼容老 Key）；也可网址带 ?tsk=你的安全密钥 自助注入。 */
+  tmapSecurity: '',
+  proxyHost: 'http://127.0.0.1:__WB_HTTP_PORT__/_TMapService/_wbt/__WB_TMAP_SECRET__',
+  /* 微信 JS-SDK 签名服务：返回 {appId,timestamp,nonceStr,signature}。
+     留空则跳过 wx.config，分享退回微信默认抓取（标题仍有效）。 */
+  wxSignUrl: '',
+  shareLink: '',       // 留空用当前页（去掉 hash）
+  shareImg: ''         // 分享缩略图，需 https 绝对路径
+};
+</script>
+<script type="text/javascript">
+/* 微信内置浏览器 / sandbox iframe 下 localStorage 可能抛 SecurityError，
+   腾讯地图 SDK 会在构造内部读存储，先垫一层内存实现。 */
+(function(){
+  function works(s){ try{ s.setItem('__wb_probe__','1'); s.removeItem('__wb_probe__'); return true; }catch(e){ return false; } }
+  function makeStore(){
+    var mem={};
+    return { getItem:function(k){k=String(k);return Object.prototype.hasOwnProperty.call(mem,k)?mem[k]:null;},
+      setItem:function(k,v){mem[String(k)]=String(v);}, removeItem:function(k){delete mem[String(k)];},
+      clear:function(){mem={};}, key:function(i){var ks=Object.keys(mem);return (i>=0&&i<ks.length)?ks[i]:null;},
+      get length(){return Object.keys(mem).length;} };
+  }
+  ['localStorage','sessionStorage'].forEach(function(name){
+    var ok=false; try{ ok=works(window[name]); }catch(e){ ok=false; }
+    if(ok) return;
+    var fake=makeStore();
+    try{ Object.defineProperty(window,name,{configurable:true,enumerable:true,get:function(){return fake;}}); }
+    catch(e){ try{ window[name]=fake; }catch(e2){} }
+  });
+})();
+</script>
+<style>
+  :root{
+    --ink:#18212c; --sub:#66748a; --hot:#e5342a; --line:rgba(24,33,44,.12);
+    --card:rgba(255,255,255,.93); --bg:#eef1f3;
+    --safe:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink)}
+  #map{position:fixed;inset:0;width:100vw;height:100vh;z-index:0}
+  #dots{position:fixed;inset:0;width:100vw;height:100vh;z-index:2;pointer-events:none}
+
+  /* ---- 顶栏 ---- */
+  #top{position:fixed;left:0;right:0;top:0;height:52px;z-index:8;
+    display:flex;align-items:center;justify-content:space-between;padding:0 14px;
+    background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,255,255,.55));
+    border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+  #top .brand{font-size:13px;letter-spacing:.08em;color:var(--sub);display:flex;align-items:baseline;gap:8px}
+  #top .brand b{font-size:16px;letter-spacing:.12em;color:var(--ink);font-weight:800}
+  #top .brand span{font-size:11px;letter-spacing:.16em;opacity:.75}
+  .btn{border:1px solid var(--line);background:rgba(255,255,255,.9);color:var(--ink);
+    border-radius:18px;padding:6px 14px;font-size:13px;font-weight:600;line-height:1.35}
+  .btn:active{background:#f0f2f5}
+  .btn.primary{background:var(--hot);border-color:var(--hot);color:#fff}
+
+  /* ---- 姓氏字标 / 年代 ---- */
+  #glyph{position:fixed;left:16px;top:62px;z-index:6;pointer-events:none;
+    font-size:clamp(46px,15vw,80px);line-height:1;font-weight:800;letter-spacing:.02em;
+    color:var(--ink);text-shadow:0 0 3px #fff,0 0 12px rgba(255,255,255,.95),0 3px 20px rgba(255,255,255,.85)}
+  #glyph.compound{font-size:clamp(30px,9.5vw,52px);letter-spacing:.04em}
+  #era{position:fixed;right:12px;top:64px;z-index:6;pointer-events:none;
+    text-align:right;background:rgba(255,255,255,.82);border:1px solid var(--line);
+    border-radius:9px;padding:6px 11px 7px;backdrop-filter:blur(6px);max-width:52vw}
+  #eraMain{font-size:16px;font-weight:750;letter-spacing:.04em;color:var(--ink);line-height:1.2}
+  #eraSub{font-size:10.5px;letter-spacing:.14em;color:var(--sub);margin-top:2px}
+  #lvTag{position:fixed;left:16px;z-index:6;pointer-events:none;
+    font-size:10.5px;letter-spacing:.08em;color:var(--sub);
+    background:rgba(255,255,255,.8);border:1px solid var(--line);
+    border-radius:5px;padding:3px 7px;top:calc(62px + clamp(46px,15vw,80px) + 6px)}
+  #lvTag b{color:var(--hot);font-weight:750}
+
+  /* ---- 事件面板：全部展示、不折叠 ---- */
+  /* 事件全部展示：排版压缩到 3 条事件（实测每格上限）连同背景简介
+     都能在 36vh 内完整显示，不折叠、不出现「另有 N 条」、不需要滚动才看全。 */
+  #eventPanel{position:fixed;left:10px;right:10px;bottom:calc(84px + var(--safe));z-index:6;
+    display:none;max-height:36vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    background:var(--card);border:1px solid var(--line);border-left:3px solid var(--hot);
+    border-radius:9px;padding:8px 11px 9px;backdrop-filter:blur(9px);
+    box-shadow:0 4px 20px rgba(20,32,44,.14)}
+  #eventPanel .hd{font-size:11px;letter-spacing:.18em;color:var(--sub);font-weight:700;margin-bottom:5px}
+  #eventPanel .ev{margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
+  #eventPanel .ev.first{margin-top:0;padding-top:0;border-top:0}
+  #eventPanel .nm{font-size:13.5px;font-weight:750;color:#a72a20;line-height:1.32}
+  #eventPanel .yr{font-size:10px;color:var(--sub);letter-spacing:.04em;margin-top:1px}
+  #eventPanel .br{font-size:11.8px;line-height:1.48;color:#26313d;margin-top:2px}
+  #eventPanel .src{font-size:10.5px;line-height:1.5;color:#7b8796;margin-top:3px}
+
+  /* ---- 底部控制：极细刻度（不是视频里那条被取消的进度条） ---- */
+  #ctrl{position:fixed;left:0;right:0;bottom:0;z-index:8;
+    padding:0 12px calc(8px + var(--safe));
+    background:linear-gradient(0deg,rgba(255,255,255,.96),rgba(255,255,255,.78));
+    border-top:1px solid var(--line);backdrop-filter:blur(8px)}
+  #scrub{position:relative;height:20px;margin:0 2px;touch-action:none;cursor:pointer}
+  #scrubBar{position:absolute;left:0;right:0;top:9px;height:3px;border-radius:2px;background:rgba(24,33,44,.12)}
+  #scrubFill{position:absolute;left:0;top:9px;height:3px;border-radius:2px;background:var(--hot);width:0}
+  #scrubKnob{position:absolute;top:4px;width:13px;height:13px;margin-left:-6.5px;border-radius:50%;
+    background:#fff;border:2px solid var(--hot);box-shadow:0 1px 4px rgba(0,0,0,.16)}
+  #ctrl .row{display:flex;align-items:center;gap:8px;height:40px}
+  #ctrl .row .btn{padding:5px 12px}
+  #ctrl .sp{flex:1}
+  #stepCount{font-size:11px;color:var(--sub);letter-spacing:.06em;font-variant-numeric:tabular-nums}
+  #btnPlay{min-width:62px}
+
+  /* ---- 抽屉：选姓 / 依据 ---- */
+  .sheet{position:fixed;inset:0;z-index:20;background:#fff;display:flex;flex-direction:column;
+    transform:translateY(101%);transition:transform .24s ease;visibility:hidden}
+  .sheet.open{transform:translateY(0);visibility:visible}
+  .sheet .sh{display:flex;align-items:center;gap:10px;padding:12px 14px;
+    border-bottom:1px solid var(--line);padding-top:calc(12px + env(safe-area-inset-top,0px))}
+  .sheet .sh h2{margin:0;font-size:16px;font-weight:800;letter-spacing:.06em}
+  .sheet .sh .sp{flex:1}
+  .sheet .body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px 28px}
+  #searchBox{width:100%;border:1px solid var(--line);border-radius:9px;background:#f6f8fa;
+    padding:10px 12px;font-size:15px;outline:none;color:var(--ink)}
+  #searchBox:focus{border-color:var(--hot);background:#fff}
+  .secTitle{font-size:11px;letter-spacing:.16em;color:var(--sub);font-weight:700;margin:16px 0 8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:7px}
+  .sname{position:relative;border:1px solid var(--line);background:#fff;border-radius:8px;
+    padding:9px 2px 8px;text-align:center;font-size:19px;font-weight:700;line-height:1.2;
+    color:var(--ink);cursor:pointer}
+  .sname.cp{font-size:14px;letter-spacing:.02em}
+  .sname.on{background:var(--hot);border-color:var(--hot);color:#fff}
+  .sname .py{display:block;font-size:9px;font-weight:400;letter-spacing:.02em;color:var(--sub);margin-top:2px}
+  .sname.on .py{color:rgba(255,255,255,.85)}
+  .sname .mk{position:absolute;right:3px;top:2px;font-size:8px;font-weight:700;color:var(--hot)}
+  .sname.on .mk{color:#fff}
+  .empty{font-size:13px;color:var(--sub);padding:18px 0;text-align:center}
+
+  /* ---- 依据卡 ---- */
+  .infoCard{border:1px solid var(--line);border-radius:10px;padding:13px 14px;margin-bottom:11px;background:#fbfcfd}
+  .infoCard h3{margin:0 0 7px;font-size:14px;font-weight:800}
+  .infoCard p{margin:0 0 7px;font-size:12.5px;line-height:1.68;color:#35414f}
+  .infoCard p:last-child{margin-bottom:0}
+  .infoCard .k{color:var(--sub);font-size:11px;letter-spacing:.06em}
+  .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:4px;
+    background:#fdeceb;color:#a72a20;margin-right:6px}
+  .badge.g{background:#eef2f7;color:#4a5b70}
+  .badge.j{background:#e8f6ee;color:#1f7a47}
+  .sname .mk.j{color:#1f7a47}
+  .sname.on .mk.j{color:#eafff2}
+  .srcList{margin:6px 0 0;padding-left:18px;font-size:11.5px;line-height:1.7;color:#4a5b70}
+  .note{font-size:11.5px;line-height:1.65;color:var(--sub)}
+  .jumpBtn{display:inline-block;margin-top:4px;padding:7px 14px;border:1px solid var(--hot);
+    background:var(--hot);color:#fff;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer}
+  .jumpBtn:active{opacity:.85}
+  /* 肖 → 萧 二简字：依据抽屉里的醒目提示块（不再嵌套 infoCard） */
+  .xiaoTip{margin:8px 0 2px;padding:11px 12px;border:1px solid #e8b84b;border-left:4px solid #e8b84b;
+    border-radius:9px;background:linear-gradient(180deg,rgba(255,250,235,.92),rgba(255,246,224,.86))}
+  .xiaoTip p{font-size:12.5px;line-height:1.66;color:#5e4a17;margin:0 0 6px}
+  .xiaoTip p:last-child{margin-bottom:0}
+  /* 选「肖」时浮出的顶部说明卡：一眼可知肖不是独立姓，并一键去重选萧 */
+  #xiaoAlert{position:fixed;left:14px;right:14px;top:58px;z-index:21;display:none;
+    background:linear-gradient(180deg,rgba(255,250,235,.98),rgba(255,246,224,.96));
+    border:1px solid #e8b84b;border-left:4px solid #e8b84b;border-radius:11px;
+    padding:11px 12px 12px;box-shadow:0 6px 22px rgba(120,90,20,.18);backdrop-filter:blur(8px)}
+  #xiaoAlert .xa-h{display:flex;align-items:flex-start;gap:8px}
+  #xiaoAlert .xa-ico{flex:none;width:20px;height:20px;border-radius:50%;background:#e8b84b;color:#fff;
+    font-size:12px;font-weight:800;line-height:20px;text-align:center;margin-top:1px}
+  #xiaoAlert .xa-t{font-size:13.5px;font-weight:800;color:#7a5300;letter-spacing:.02em;flex:1;line-height:1.4}
+  #xiaoAlert .xa-x{flex:none;width:22px;height:22px;border:0;background:transparent;color:#b9810a;
+    font-size:19px;line-height:1;cursor:pointer;padding:0}
+  #xiaoAlert p{margin:7px 0 0;font-size:12px;line-height:1.62;color:#5e4a17}
+  #xiaoAlert .xa-btn{display:inline-block;margin-top:10px;padding:8px 15px;border:0;border-radius:8px;
+    background:var(--hot);color:#fff;font-size:13.5px;font-weight:800;cursor:pointer;letter-spacing:.02em}
+  #xiaoAlert .xa-btn:active{opacity:.85}
+  #diag{position:fixed;left:10px;top:56px;right:10px;z-index:30;display:none;
+    background:#2a1210;color:#fff1e9;border:1px solid #ff9a4d;border-radius:8px;
+    padding:8px 11px;font-size:11.5px;line-height:1.55}
+
+  /* 矮屏（如 375×667）：进一步压排版，保证 3 条事件仍完整可见 */
+  @media (max-height:720px) and (orientation:portrait){
+    #eventPanel{max-height:44vh;padding:7px 10px 8px}
+    #eventPanel .ev{margin-top:4px;padding-top:4px}
+    #eventPanel .nm{font-size:12.5px}
+    #eventPanel .br{font-size:11px;line-height:1.4}
+  }
+  @media (min-aspect-ratio:1/1){
+    /* 横屏：华东 / 华北是点位最密的区域，事件面板放左下，
+       让出右侧主要数据区；左侧是西部少点区，遮挡代价最小。 */
+    #eventPanel{left:16px;right:auto;width:min(340px,36vw);max-height:42vh;bottom:calc(84px + var(--safe))}
+    #eventPanel .nm{font-size:13px}
+    #eventPanel .br{font-size:11.8px;line-height:1.5}
+    #glyph{font-size:84px;left:28px;top:70px}
+    #glyph.compound{font-size:52px}
+    #era{top:72px;right:24px}
+    #lvTag{top:164px;left:28px}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr))}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+  <canvas id="dots"></canvas>
+
+  <header id="top">
+    <div class="brand"><b>姓氏繁衍</b><span id="brandId">TigerFRM</span></div>
+    <button class="btn primary" id="btnPick">选姓</button>
+    <button class="btn" id="btnSound" title="背景音乐">🔊</button>
+  </header>
+  <audio id="bgm" src="bgm/Victory.mp3" loop preload="auto" playsinline></audio>
+
+  <div id="glyph">李</div>
+  <div id="era"><div id="eraMain"></div><div id="eraSub"></div></div>
+  <div id="lvTag"></div>
+  <section id="eventPanel"></section>
+
+  <div id="ctrl">
+    <div id="scrub"><div id="scrubBar"></div><div id="scrubFill"></div><div id="scrubKnob"></div></div>
+    <div class="row">
+      <button class="btn" id="btnPrev">‹</button>
+      <button class="btn primary" id="btnPlay">播放</button>
+      <button class="btn" id="btnNext">›</button>
+      <button class="btn" id="btnInfo">依据</button>
+      <span class="sp"></span>
+      <span id="stepCount">01 / 34</span>
+    </div>
+  </div>
+
+  <div class="sheet" id="picker">
+    <div class="sh"><h2>选一个姓</h2><span class="sp"></span><button class="btn" id="btnPickClose">关闭</button></div>
+    <div class="body">
+      <input id="searchBox" type="search" placeholder="输入汉字 / 拼音 / 首字母，如 李、li、l" autocomplete="off">
+      <div class="secTitle">热门姓氏</div>
+      <div class="grid" id="hotGrid"></div>
+      <div class="secTitle" id="allTitle">全部姓氏</div>
+      <div class="grid" id="allGrid"></div>
+      <p class="note" id="pickNote"></p>
+    </div>
+  </div>
+
+  <div class="sheet" id="info">
+    <div class="sh"><h2>依据与口径</h2><span class="sp"></span><button class="btn" id="btnInfoClose">关闭</button></div>
+    <div class="body" id="infoBody"></div>
+  </div>
+
+  <div id="diag"></div>
+
+  <div id="xiaoAlert">
+    <div class="xa-h">
+      <span class="xa-ico">注</span>
+      <div class="xa-t">「肖」与「萧」：同源，已分列</div>
+      <button class="xa-x" id="xiaoClose" aria-label="关闭">×</button>
+    </div>
+    <p>「肖」「萧」本是一姓。1977 年《第二次汉字简化方案（草案）》把「萧」简化为「肖」，该方案 1986 年废止，但此前已有大量萧姓在户籍、证件上改登记为「肖」，沿用至今。</p>
+    <p>所以今天公安部排名里「肖」在前 100、「萧」在 101—300，二者已是<strong>分开登记的两个姓</strong>。肖姓人口多，很大程度上正是这段改登记的沉淀。本页演示「肖」这一条；正字「萧」的得姓、兰陵郡望与迁徙见萧页。</p>
+    <button class="xa-btn" id="xiaoJump">看正字「萧」的史料与郡望 →</button>
+  </div>
+</div>
+
+<script>window.__H5_CORE__=__H5_CORE_JSON__;</script>
+<script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js" async></script>
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var CFG = window.__H5_CONFIG__ || {};
+  var C = window.__H5_CORE__ || {};
+  var PL = C.PL || [], STEPS = C.steps || [], EV = C.events || {}, LIST = C.list || [];
+  var N = STEPS.length || 1;
+  var DOT_INK = '#e5342a', BASE_INK = 'rgba(86,116,148,.32)';
+
+  function diag(msg){
+    /* 公网不显示开发诊断条；本机保留，便于排查底图加载 */
+    if(!/^(localhost|127\.0\.0\.1|\[::1\])$/i.test(location.hostname)) return;
+    var d=$('diag'); if(!d) return; d.textContent=msg; d.style.display='block';
+  }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  var state = {
+    ch:'李', row:null, tier:'A', t:0, playing:false,
+    frames:null, full:false, events:true, hud:true,
+    mapReady:false, acc:[], totalMs:0, elapsed:0
+  };
+  var BASE_MS = 550;         /* 每格基础停留（原 1250，过慢导致首屏像卡住） */
+  var EVENT_MS = 380;        /* 每条事件额外停留，方便阅读（与降速视频同理） */
+  var map=null, dotCanvas=null, dotCtx=null, dotW=0, dotH=0, dotDPR=1;
+  var started=false, clockId=0;
+
+  /* ---------- 索引 ---------- */
+  var ROW_BY_CH = {};
+  LIST.forEach(function(r){ ROW_BY_CH[r.c]=r; });
+  var HOT = LIST.filter(function(r){ return r.rank && r.rank<=24; })
+                .sort(function(a,b){ return a.rank-b.rank; });
+  var ALL = LIST.slice().sort(function(a,b){
+    var pa=a.py||'zz', pb=b.py||'zz';
+    if(pa!==pb) return pa<pb?-1:1;
+    return (a.c<b.c)?-1:1;
+  });
+
+  function tierOf(row){
+    if(!row || row.rank==null) return 'D';
+    if(row.rank<=100) return 'A';
+    if(row.rank<=300) return 'B';
+    if(row.rank<=600) return 'C';
+    return 'D';
+  }
+
+  /* ---------- 帧数据 ----------
+     full 姓用逐姓史料帧；其余用共用骨架，并按该姓真实存在的官方省级结论
+     补省级锚点（不伪造专属发祥地）。 */
+  function buildFrames(ch, row, tier){
+    if(C.fullFrames && C.fullFrames[ch]) return C.fullFrames[ch];
+    var base=(C.generic||{})[tier]||[], out=base.map(function(f){ return f.slice(); });
+    var extra=[], mp=(C.maxProv||{})[ch];
+    if(mp!==undefined) extra.push([mp,28,0,2]);
+    ((C.topProv||{})[ch]||[]).forEach(function(p){ extra.push([p,22,0,1]); });
+    if((C.twTop||[]).indexOf(ch)>=0){
+      (C.twPoints||[]).forEach(function(p){ extra.push([p,11,1,0]); });
+    }
+    if(extra.length){
+      for(var i=0;i<N;i++){
+        if((STEPS[i].cs||0)>=20) out[i]=out[i].concat(extra);
+      }
+    }
+    return out;
+  }
+
+  /* ---------- 角标：史 / 官 / 家 / 组合（由 build_h5_data.py 的 badgeMap 控制） ----------
+     badgeMap 取值："史"（逐姓史料）/ "官"（官方省级结论）/ "家"（公开谱牒依据）
+     / "官·家"（官方+谱牒）/ ""（纯通用骨架，不标专属发祥地）。 */
+  function badgeParts(ch){
+    var b=(C.badgeMap&&C.badgeMap[ch])||'';
+    if(!b && C.fullMeta && C.fullMeta[ch]) b='史';   /* 兜底：有逐姓帧即史 */
+    return b;
+  }
+  /* 选择器右上角小角标：只取「最研究层」一个字（史>家>官），组合不堆字。 */
+  function badgeMk(ch){
+    var b=badgeParts(ch);
+    if(b.indexOf('史')>=0) return {t:'史',c:''};
+    if(b.indexOf('家')>=0) return {t:'家',c:' j'};
+    if(b.indexOf('官')>=0) return {t:'官',c:' g'};
+    return {t:'',c:''};
+  }
+  /* 顶部 HUD 依据行：展示完整组合，无角标时退回 官/谱。 */
+  function lvLabel(ch){
+    var b=badgeParts(ch);
+    if(!b) return (state.row&&state.row.ev&&state.row.ev.length)?'<b>官</b> 官方省级结论':'<b>谱</b> 通用示意';
+    var ps=[];
+    if(b.indexOf('史')>=0) ps.push('<b>史</b> 逐姓史料');
+    if(b.indexOf('官')>=0) ps.push('<b>官</b> 官方省级结论');
+    if(b.indexOf('家')>=0) ps.push('<b>家</b> 谱牒依据');
+    return ps.join(' · ');
+  }
+
+  /* ---------- 事件：全部展示，专属事件绝不套用到别姓 ---------- */
+  function centurySpan(d){
+    if(!d || d.s===undefined || d.e===undefined) return '';
+    function lab(c){ return c<0 ? ('前'+Math.abs(c)+'世纪') : (c+'世纪'); }
+    return (d.s===d.e) ? lab(d.s) : (lab(d.s)+'—'+lab(d.e));
+  }
+  function eventsAt(i){
+    var ids, ch=state.ch;
+    if(C.fullMeta && C.fullMeta[ch]){
+      ids=(C.fullMeta[ch].events[i]||[]).slice();
+    } else {
+      ids=(C.allEvents&&C.allEvents[i]||[]).filter(function(id){
+        var d=EV[id]; if(!d) return false;
+        var sc=d.sc;
+        return sc==='all' || (Object.prototype.toString.call(sc)==='[object Array]' && sc.indexOf(ch)>=0);
+      });
+      /* D 档（《百家姓》收录、未入现代 600 名）没有「31 省均有分布」的依据，
+         不能显示这条 A 级官方结论，也不铺开近现代点。 */
+      if(state.tier==='D') ids=ids.filter(function(id){ return id!=='ev_xiandai'; });
+    }
+    ids.sort(function(a,b){
+      var ta=(EV[a]&&EV[a].t==='A')?0:1, tb=(EV[b]&&EV[b].t==='A')?0:1;
+      if(ta!==tb) return ta-tb;
+      return ((EV[a]&&EV[a].s)||0)-((EV[b]&&EV[b].s)||0);
+    });
+    return ids;
+  }
+
+  /* ---------- 播放时长：有事件的世纪自动多停留 ---------- */
+  function rebuildPace(){
+    state.acc=[0]; var total=0;
+    for(var i=0;i<N;i++){
+      var evc=eventsAt(i).length;
+      var ms=BASE_MS + EVENT_MS*evc;
+      if(evc>0) ms*=1.1;            /* 有迁徙事件的世纪延长 10%，便于阅读 */
+      total+=ms; state.acc.push(total);
+    }
+    state.totalMs=total;
+  }
+  function tFromElapsed(ms){
+    if(ms>=state.totalMs) return N-1;
+    for(var i=0;i<N;i++){
+      if(ms<state.acc[i+1]) return i + (ms-state.acc[i])/(state.acc[i+1]-state.acc[i]);
+    }
+    return N-1;
+  }
+  function elapsedFromT(t){
+    var i=Math.max(0,Math.min(N-1,Math.floor(t)));
+    var f=Math.max(0,Math.min(1,t-i));
+    return state.acc[i] + (state.acc[i+1]-state.acc[i])*f;
+  }
+
+  /* ---------- 合规底图 ---------- */
+  function fitZoom(w,h){
+    var zW=Math.log(Math.max(1,w)*360/(69*256))/Math.LN2;
+    var zH=Math.log(Math.max(1,h)*360/(40*256))/Math.LN2;
+    return Math.max(2.6,Math.min(7.5,Math.min(zW,zH)));
+  }
+  var FIT_ZOOM=fitZoom(window.innerWidth,window.innerHeight);
+  var MAP_CENTER={lat:34.6,lng:106.5};
+
+  /* 只在开发/本机预览显示诊断条；公网静默，不把技术细节抛给读者 */
+  var IS_LOCAL=/^(localhost|127\.0\.0\.1|\[::1\])$/i.test(location.hostname);
+
+  /* 按运行环境自动选底图来源：本机走官方密钥代理，公网用使用者自己的 Key，
+     Key 可由网址 ?tk= 自助注入；都没有时静默退回行政基底点。 */
+  /* 本机密钥代理仅在预览服务真的把 __WB_HTTP_PORT__ / __WB_TMAP_SECRET__ 占位符
+     替换掉时才可用。静态构建产物里占位符是原样保留的，此时该地址不成立，
+     若仍走 proxy 会拿到一个坏 serviceHost，SDK 内部抛非标准错误 → 底图空白。
+     故先校验，占位符未替换就直接跳过 proxy，改用自有 Key。 */
+  function proxyUsable(){
+    var h=String(CFG.proxyHost||'');
+    if(!h) return false;
+    if(h.indexOf('__WB_')>=0) return false;
+    return /^https?:\/\/[^\/]+/i.test(h);
+  }
+
+  function resolveMapMode(){
+    if(CFG.mapMode==='none') return {mode:'none',key:''};
+    var tk='';
+    try{ var m=location.href.match(/[?&]tk=([^&#]+)/); if(m) tk=decodeURIComponent(m[1]); }catch(e){}
+    tk=(tk||'').trim();
+    if(tk) return {mode:'key',key:tk};
+    if(IS_LOCAL && proxyUsable()) return {mode:'proxy',key:''};
+    if(CFG.tmapKey) return {mode:'key',key:String(CFG.tmapKey).trim()};
+    if(CFG.mapMode==='proxy' && proxyUsable()) return {mode:'proxy',key:''};
+    return {mode:'none',key:''};
+  }
+  var MAPCFG=resolveMapMode();
+
+  function initMap(){
+    if(MAPCFG.mode==='none'){ boot(); return; }
+    var sk='';
+    try{ var m=location.href.match(/[?&]tsk=([^&#]+)/); if(m) sk=decodeURIComponent(m[1]); }catch(e){}
+    sk=(sk||'').trim() || (CFG.tmapSecurity||'').trim();
+    if(MAPCFG.mode==='key' && MAPCFG.key){
+      /* key 模式：近年申请的 Key 需配套安全密钥才能通过鉴权，否则底图静默失败 */
+      if(sk) window._TMapSecurityConfig={securityJsCode:sk};
+    } else if(MAPCFG.mode==='proxy' && CFG.proxyHost){
+      window._TMapSecurityConfig = sk ? {serviceHost:CFG.proxyHost,securityJsCode:sk}
+                                     : {serviceHost:CFG.proxyHost};
+    } else { boot(); return; }
+    var src='https://map.qq.com/api/gljs?v=1.exp'
+          + ((MAPCFG.mode==='key'&&MAPCFG.key) ? ('&key='+encodeURIComponent(MAPCFG.key)) : '');
+    var s=document.createElement('script');
+    var done=false;
+    function finish(){ if(done) return; done=true; boot(); }
+    s.onload=function(){
+      /* 若 6 秒超时已经先 boot 过，SDK 到位后再补建一次地图 */
+      if(started && !map && typeof TMap!=='undefined' && TMap.Map){ makeMap(); render(); }
+      finish();
+    };
+    s.onerror=function(){ diag('官方矢量底图未加载（检查网络或 Key 域名白名单），已切换为行政基底点模式。'); finish(); };
+    s.src=src; document.head.appendChild(s);
+    setTimeout(finish, 6000);
+  }
+
+  function makeMap(){
+    if(typeof TMap==='undefined' || !TMap || !TMap.Map){
+      state.mapReady=false;
+      return;
+    }
+    try{
+      map=new TMap.Map('map',{
+        zoom:FIT_ZOOM, center:new TMap.LatLng(MAP_CENTER.lat,MAP_CENTER.lng),
+        showControl:false, doubleClickZoom:false, draggable:false, scrollable:false
+      });
+      state.mapReady=true;
+      if(typeof map.on==='function'){
+        ['center_changed','zoom_changed','bounds_changed','pan','zoom'].forEach(function(ev){
+          try{ map.on(ev,render); }catch(e){}
+        });
+      }
+    }catch(e){
+      map=null; state.mapReady=false;
+      /* SDK 抛出的不一定是标准 Error，e.message 常为 undefined，需兜底取真实原因 */
+      var why='';
+      try{ why=(e&&(e.message||e.msg||e.code))||(typeof e==='string'?e:'')||''; }catch(_e){}
+      why=String(why||'').trim();
+      diag('底图未加载'+(why?'：'+why:'')+'（已降级为行政基底点模式）'
+        +(IS_LOCAL?'｜本机预览无底图属正常，线上版本不受影响':''));
+    }
+  }
+
+  /* ---------- 画布与投影 ---------- */
+  function sizeCanvas(){
+    if(!dotCanvas||!dotCtx) return;
+    dotDPR=Math.min(2,window.devicePixelRatio||1);
+    dotW=window.innerWidth; dotH=window.innerHeight;
+    dotCanvas.width=Math.round(dotW*dotDPR);
+    dotCanvas.height=Math.round(dotH*dotDPR);
+    dotCanvas.style.width=dotW+'px'; dotCanvas.style.height=dotH+'px';
+    dotCtx.setTransform(dotDPR,0,0,dotDPR,0,0);
+  }
+  function zoom(){ try{ if(map&&map.getZoom) return +map.getZoom(); }catch(e){} return FIT_ZOOM; }
+  function project(lat,lng){
+    if(map && typeof map.projectToContainer==='function'){
+      try{
+        var q=map.projectToContainer(new TMap.LatLng(lat,lng));
+        if(q&&isFinite(q.x)&&isFinite(q.y)&&Math.abs(q.x)<1e5&&Math.abs(q.y)<1e5) return [q.x,q.y];
+      }catch(e){}
+    }
+    var z=FIT_ZOOM, clat=34.6, clng=106.5;
+    try{ if(map&&map.getZoom) z=+map.getZoom(); }catch(e){}
+    try{ if(map&&map.getCenter){ var c=map.getCenter(); clat=+c.lat; clng=+c.lng; } }catch(e){}
+    var ws=256*Math.pow(2,z);
+    function merc(la,ln){ var sn=Math.sin(la*Math.PI/180);
+      return [(ln+180)/360*ws,(0.5-Math.log((1+sn)/(1-sn))/(4*Math.PI))*ws]; }
+    var a=merc(clat,clng), b=merc(lat,lng);
+    return [dotW/2+(b[0]-a[0]), dotH/2+(b[1]-a[1])];
+  }
+
+  function hashStr(s){ var h=2166136261; for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+  function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  var candCache={};
+  function candidates(ch,place){
+    var k=ch+'|'+place;
+    if(candCache[k]) return candCache[k];
+    var rnd=mulberry32(hashStr(k)), phase=rnd()*Math.PI*2, arr=[];
+    for(var i=0;i<16;i++){
+      var ang=phase+i*2.39996323, rad=Math.sqrt((i+0.5)/16)*(0.82+rnd()*0.3);
+      arr.push({ox:Math.cos(ang)*rad,oy:Math.sin(ang)*rad,thr:i+(rnd()-0.5)*0.5});
+    }
+    candCache[k]=arr; return arr;
+  }
+
+  function frameMap(i){
+    var m={}, arr=(state.frames&&state.frames[i])||[];
+    for(var k=0;k<arr.length;k++) m[arr[k][0]]=arr[k];
+    return m;
+  }
+  function interpolated(t){
+    var i0=Math.max(0,Math.min(N-1,Math.floor(t))), i1=Math.min(N-1,i0+1);
+    var f=Math.max(0,Math.min(1,t-i0)), a=frameMap(i0), b=frameMap(i1), keys={}, out=[];
+    Object.keys(a).forEach(function(k){ keys[k]=1; });
+    Object.keys(b).forEach(function(k){ keys[k]=1; });
+    Object.keys(keys).forEach(function(k){
+      var x=a[k], y=b[k];
+      if(x&&y)      out.push({p:+k,s:y,n:(x[1]+(y[1]-x[1])*f)/10,w:1});
+      else if(!x&&y) out.push({p:+k,s:y,n:y[1]/10,w:f});
+      else if(x&&!y) out.push({p:+k,s:x,n:x[1]/10,w:1-f});
+    });
+    return out;
+  }
+
+  function drawBase(){
+    var ready=state.mapReady;
+    var lvR,lvA,ink;
+    if(ready){
+      /* 有官方底图时，点云只作极淡的纹理衬底 */
+      lvR=[1.25,.95,.7,.7]; lvA=[.34,.24,.18,.18]; ink=BASE_INK;
+    } else {
+      /* 无官方底图（公网未配 Key）：用 3137 个行政单元中心点构成「有人区」陆域轮廓。
+         刻意不画任何国界 / 省界 / 海岸线，只用点云密度勾勒可居住陆域，合规安全。
+         点云加粗加密，使其在手机 / 微信内也能清晰可见（不依赖任何密钥）。 */
+      lvR=[12,9.5,7,6]; lvA=[.55,.43,.32,.26]; ink='#9fb6cf';
+    }
+    for(var i=0;i<PL.length;i++){
+      var p=PL[i]; if(!p) continue;
+      var xy=project(p[0],p[1]);
+      if(xy[0]<-8||xy[1]<-8||xy[0]>dotW+8||xy[1]>dotH+8) continue;
+      dotCtx.globalAlpha=lvA[p[2]]===undefined?.12:lvA[p[2]];
+      dotCtx.fillStyle=ink;
+      dotCtx.beginPath(); dotCtx.arc(xy[0],xy[1],lvR[p[2]]===undefined?.8:lvR[p[2]],0,Math.PI*2); dotCtx.fill();
+    }
+  }
+
+  var lastDrawn=0;
+  function drawSites(list){
+    var z=zoom(), ws=256*Math.pow(2,z), kpx=ws/360;
+    /* 竖屏 zoom 较小，点簇会挤成一团；按屏宽给一个最小扩散半径和缩放系数 */
+    var minK=Math.max(3.0,Math.min(8,dotW/105));
+    var sc=Math.max(.60,Math.min(1.25,dotW/1100));
+    var drawn=0;
+    for(var i=0;i<list.length;i++){
+      var it=list[i], s=it.s, p=PL[it.p];
+      if(!p||it.w<=.01||it.n<=.02) continue;
+      var xy=project(p[0],p[1]);
+      if(xy[0]<-40||xy[1]<-40||xy[0]>dotW+40||xy[1]>dotH+40) continue;
+      var cosv=Math.max(.2,Math.cos(p[0]*Math.PI/180));
+      var spread=.18+Math.min(1,it.n/7)*.42;
+      var kx=Math.max(kpx*spread,minK), ky=Math.max((kpx/cosv)*spread*.85,minK*.85);
+      var cand=candidates(state.ch,it.p);
+      drawn++;
+      if(s[2]===1){
+        /* 省内铺开点：每处一个清晰小点，不用点簇阈值 */
+        var t=s[3], A=(t===2?1.0:(t===1?.90:.78)), R=(t===2?3.0:(t===1?2.5:2.0))*sc;
+        dotCtx.globalAlpha=A*it.w; dotCtx.fillStyle=DOT_INK;
+        dotCtx.beginPath();
+        dotCtx.arc(xy[0]+cand[0].ox*kx*.5, xy[1]+cand[0].oy*ky*.5, Math.max(1.3,R), 0, Math.PI*2);
+        dotCtx.fill();
+      } else {
+        for(var j=0;j<cand.length;j++){
+          var pt=cand[j], a=Math.min(1,Math.max(0,it.n-pt.thr))*it.w;
+          if(a<=.02) continue;
+          dotCtx.globalAlpha=a*.95; dotCtx.fillStyle=DOT_INK;
+          dotCtx.beginPath();
+          dotCtx.arc(xy[0]+pt.ox*kx, xy[1]+pt.oy*ky,
+                     Math.max(1.1,(1.2+.9*a)*sc), 0, Math.PI*2);
+          dotCtx.fill();
+        }
+      }
+    }
+    return drawn;
+  }
+
+  /* ---------- 画面文字 ---------- */
+  function renderEventPanel(i){
+    var panel=$('eventPanel'); if(!panel) return;
+    var ids=state.events?eventsAt(i):[];
+    if(!ids.length){ panel.style.display='none'; panel.innerHTML=''; return; }
+    /* 全部展示，不折叠、不截断、不出现「另有 N 条」 */
+    var html='<div class="hd">迁徙事件 · 本世纪 · '+ids.length+' 条</div>';
+    ids.forEach(function(id,ix){
+      var d=EV[id]||{};
+      html+='<div class="ev'+(ix===0?' first':'')+'">'
+          + '<div class="nm">'+esc(d.n||id)+'</div>'
+          + '<div class="yr">'+esc(centurySpan(d))+' · '+esc(d.t||'B')+' 级依据</div>'
+          + (d.b?'<div class="br">'+esc(d.b)+'</div>':'')
+          + '</div>';
+    });
+    panel.innerHTML=html; panel.style.display='block';
+  }
+  function renderHud(){
+    var i=Math.max(0,Math.min(N-1,Math.round(state.t))), st=STEPS[i]||{};
+    var g=$('glyph');
+    g.textContent=state.ch; g.className=state.row&&state.row.cmp?'compound':'';
+    $('eraMain').textContent=(st.mode==='origin')?((st.era||'').split(' · ')[0]||st.label||''):(st.label||'');
+    $('eraSub').textContent=st.dyn||'';
+    $('lvTag').innerHTML=lvLabel(state.ch)+' · '+(C.tierLabel&&C.tierLabel[state.tier]||'');
+    $('stepCount').textContent=String(i+1).padStart(2,'0')+' / '+N;
+    var pct=(state.totalMs?Math.min(1,state.elapsed/state.totalMs):0);
+    $('scrubFill').style.width=(pct*100)+'%';
+    $('scrubKnob').style.left=(pct*100)+'%';
+    renderEventPanel(i);
+  }
+  function render(){
+    if(!dotCtx) return;
+    dotCtx.clearRect(0,0,dotW,dotH);
+    drawBase();
+    lastDrawn=drawSites(interpolated(state.t));
+    dotCtx.globalAlpha=1;
+    renderHud();
+  }
+
+  /* ---------- 播放 ---------- */
+  function setT(t){
+    state.t=Math.max(0,Math.min(N-1,+t||0));
+    /* 每格停留时长不同（有事件的格更慢），t 与 elapsed 不是线性关系 */
+    state.elapsed=elapsedFromT(state.t);
+    render(); return state.t;
+  }
+  /* 背景音乐：浏览器/微信禁止无 gesture 自动播放，故在「播放」手势里启动；
+     用相对路径 bgm/Victory.mp3（部署时需把 bgm/ 一并上传）。 */
+  var soundOn=true, bgmFadeId=0;
+  function cancelBgmFade(){ if(bgmFadeId){ clearInterval(bgmFadeId); bgmFadeId=0; } }
+  /* 末尾淡出：在 dur 毫秒内把音量从当前值线性降到 0，再暂停并复位，避免结尾突兀 */
+  function fadeBgm(dur, done){
+    var a=$('bgm'); if(!a){ if(done) done(); return; }
+    cancelBgmFade();
+    var v0=(typeof a.volume==='number'&&a.volume>0)?a.volume:0.4;
+    var t0=(typeof performance!=='undefined'&&performance.now)?performance.now():Date.now();
+    bgmFadeId=setInterval(function(){
+      var now=(typeof performance!=='undefined'&&performance.now)?performance.now():Date.now();
+      var k=Math.max(0,1-(now-t0)/dur);
+      try{ a.volume=v0*k; }catch(e){}
+      if(k<=0){ clearInterval(bgmFadeId); bgmFadeId=0; try{ a.pause(); a.currentTime=0; }catch(e){} if(done) done(); }
+    },30);
+  }
+  function ensureBgm(){ var a=$('bgm'); if(a&&soundOn){ cancelBgmFade(); try{ a.volume=0.4; }catch(e){} var p=a.play(); if(p&&p.catch) p.catch(function(){}); } }
+  function stop(){ state.playing=false; $('btnPlay').textContent='播放';
+    if(clockId){ clearInterval(clockId); clockId=0; }
+    cancelBgmFade();
+    var a=$('bgm'); if(a){ try{ a.pause(); a.volume=0.4; }catch(e){} } }
+  /* 自然播放到末尾：画面停在末格，音乐用淡出而非硬停 */
+  function endPlayback(){ state.playing=false; $('btnPlay').textContent='播放';
+    if(clockId){ clearInterval(clockId); clockId=0; }
+    fadeBgm(2600); }
+  /* 时钟用 setInterval 按真实墙钟推进，不依赖 requestAnimationFrame——
+     rAF 在预览窗 / 微信 / 移动 webview 里常被节流或不触发，会导致时间轴卡死。 */
+  var lastWall=0;
+  function stepClock(){
+    if(!state.playing) return;
+    var now=(typeof performance!=='undefined'&&performance.now)?performance.now():Date.now();
+    var dt=Math.min(200, now-lastWall); lastWall=now;
+    state.elapsed+=dt;
+    state.t=tFromElapsed(state.elapsed);
+    if(state.elapsed>=state.totalMs){ state.t=N-1; try{ render(); }catch(e){} endPlayback(); return; }
+    try{ render(); }catch(e){ /* 渲染异常绝不中断时钟 */ }
+  }
+  function play(){
+    if(state.playing) return;
+    if(state.elapsed>=state.totalMs-1){ state.elapsed=0; state.t=0; }
+    state.playing=true;
+    lastWall=(typeof performance!=='undefined'&&performance.now)?performance.now():Date.now();
+    $('btnPlay').textContent='暂停';
+    ensureBgm();
+    clockId=setInterval(stepClock,33); stepClock();
+  }
+  function togglePlay(){ state.playing?stop():play(); }
+  function stepBy(d){ stop(); setT(Math.max(0,Math.min(N-1,Math.round(state.t)+d))); }
+
+  /* ---------- 选姓 ---------- */
+  function selectSurname(ch, noPlay){
+    var row=ROW_BY_CH[ch]; if(!row) return false;
+    state.ch=ch; state.row=row; state.full=!!(C.fullMeta&&C.fullMeta[ch]);
+    var xa=$('xiaoAlert'); if(xa) xa.style.display=(ch==='肖')?'block':'none';
+    state.tier=tierOf(row);
+    state.frames=buildFrames(ch,row,state.tier);
+    rebuildPace();
+    state.t=0; state.elapsed=0;
+    try{ localStorage.setItem('h5_last_surname',ch); }catch(e){}
+    if(location.hash!=='#'+encodeURIComponent(ch)){
+      try{ history.replaceState(null,'','#'+encodeURIComponent(ch)); }catch(e){ location.hash=encodeURIComponent(ch); }
+    }
+    renderInfo(); updateShare();
+    render(); renderGrids();
+    if(!noPlay) play();
+    return true;
+  }
+
+  /* ---------- 姓氏选择器 ---------- */
+  function surnameBtn(r){
+    var b=document.createElement('button');
+    b.className='sname'+(r.cmp?' cp':'')+(r.c===state.ch?' on':'');
+    b.setAttribute('data-ch',r.c);
+    var mk=badgeMk(r.c);
+    b.innerHTML=(mk.t?'<span class="mk'+mk.c+'">'+mk.t+'</span>':'')
+      + esc(r.c) + '<span class="py">'+esc(r.py||'')+'</span>';
+    return b;
+  }
+  function fillGrid(el, rows, limit){
+    var frag=document.createDocumentFragment();
+    rows.slice(0,limit||rows.length).forEach(function(r){ frag.appendChild(surnameBtn(r)); });
+    el.innerHTML=''; el.appendChild(frag);
+  }
+  function renderGrids(){
+    fillGrid($('hotGrid'),HOT,24);
+    var q=($('searchBox').value||'').trim().toLowerCase();
+    var rows=ALL;
+    if(q){
+      rows=ALL.filter(function(r){
+        if(r.c.indexOf(q)>=0) return true;
+        var py=(r.py||'').replace(/[^a-z]/g,'');
+        if(py.indexOf(q)===0 || py.indexOf(q)>0) return true;
+        return r.ini===q;
+      });
+    }
+    $('allTitle').textContent=q?('搜索结果 · '+rows.length+' 个姓'):('全部姓氏 · '+rows.length+' 个');
+    fillGrid($('allGrid'),rows,400);
+    $('pickNote').innerHTML=q&&rows.length>400
+      ? '结果较多，只显示前 400 个，请输入更完整的拼音或汉字。'
+      : '「史」= 有逐姓史料与可考发祥地；「官」= 有公安部系列省级结论；「家」= 见公开谱牒（元和姓纂 / 通志 / 百家姓考略 / 风俗通）的可考发祥地与郡望；无标记 = 见《百家姓》或现代姓氏名录，采用共用迁徙骨架，不标专属发祥地。';
+  }
+  function openSheet(id){ stop(); $(id).classList.add('open'); }
+  function closeSheet(id){ $(id).classList.remove('open'); }
+  function bindGrid(el){
+    el.addEventListener('click',function(e){
+      var b=e.target.closest?e.target.closest('.sname'):null;
+      if(!b) return;
+      var ch=b.getAttribute('data-ch');
+      closeSheet('picker'); $('searchBox').value='';
+      selectSurname(ch,false);
+    });
+  }
+
+  /* ---------- 依据卡 ---------- */
+  function renderInfo(){
+    var r=state.row||{}, ch=state.ch, h='';
+    h+='<div class="infoCard"><h3>'+esc(ch)+' 姓 · '+esc(r.py||'')+'</h3>';
+    var b=badgeParts(ch);
+    var bcls = b.indexOf('家')>=0 ? ' j' : (b.indexOf('史')>=0 ? '' : ' g');
+    var btxt = b.indexOf('史')>=0 ? '史 · 逐姓史料'
+             : (b.indexOf('家')>=0&&b.indexOf('官')>=0 ? '官·家 · 官方+谱牒依据'
+             : (b.indexOf('家')>=0 ? '家 · 谱牒依据'
+             : (b.indexOf('官')>=0 ? '官 · 官方省级结论' : '谱 · 通用示意')));
+    h+='<p><span class="badge'+bcls+'">'+btxt+'</span>';
+    if(r.bjx) h+='《百家姓》第 '+r.bjx+' 位　';
+    if(r.rank) h+='现代常见姓氏第 '+r.rank+' 名';
+    h+='</p>';
+    if(ch==='萧') h+='<p class="note">注：「肖」多为本姓的二简字写法——1977 年《第二次汉字简化方案（草案）》曾把「萧」简化为「肖」，1986 年废止，但大量萧姓已改登记为「肖」并沿用；二者现为分开登记的两个姓。「肖」见另一条。</p>';
+    if(ch==='肖'){
+      h+='<div class="xiaoTip">'
+        +'<p>「肖」「萧」本是一姓：1977 年《第二次汉字简化方案（草案）》把「萧」简化为「肖」，1986 年废止；但大量萧姓在此前后已改登记为「肖」，沿用至今。二者现为<strong>分开登记的两个姓</strong>，故排名分列（肖前 100、萧 101—300）。</p>'
+        +'<p>肖姓人口之所以多，很大程度上是这段改登记的沉淀。本页演示「肖」这一条；正字「萧」的得姓（子姓、以国为氏）、兰陵郡望与迁徙脉络，见萧页：</p>'
+        +'<p><button class="jumpBtn" onclick="window.__h5.setSurname(\'萧\',false)">看正字「萧」的史料与郡望 →</button></p>'
+        +'</div>';
+    }
+    if(state.full){
+      var isFam=(b.indexOf('家')>=0);
+      var fm=(C.fullMeta[ch]||{});
+      var o=fm.origin||{};
+      if(isFam){
+        /* 谱牒依据层：得姓来源 / 郡望 / 迁徙脉络 / 出处文献（含引文） */
+        h+='<p><span class="k">得姓来源</span><br>'+esc(o.region||'')+'（'+esc(o.dynasty||'')+'）</p>';
+        if(o.basis) h+='<p>'+esc(o.basis)+'</p>';
+        var wang=fm.wang||[]; if(typeof wang==='string') wang=[wang];   /* 容错：允许 wang 为字符串 */
+        if(wang.length) h+='<p><span class="k">主要郡望 / 发祥地</span><br>'+esc(wang.join('、'))+'</p>';
+        var mig=fm.migration||'';
+        if(mig) h+='<p><span class="k">迁徙脉络（谱牒记载）</span><br>'+esc(mig)+'</p>';
+        var gsrc=fm.sources||[];
+        if(gsrc.length){ h+='<p><span class="k">出处文献</span></p><ol class="srcList">';
+          gsrc.forEach(function(s){
+            var t=esc(s.title||'');
+            if(s.author) t+=' · '+esc(s.author);
+            if(s.type) t+='（'+esc(s.type)+'）';
+            h+='<li>'+t+(s.quote?'<br><span class="note">'+esc(s.quote)+'</span>':'')+'</li>';
+          }); h+='</ol>'; }
+      } else {
+        /* 原 10 个逐姓史料帧（史标） */
+        h+='<p><span class="k">发祥地 / 得姓</span><br>'+esc(o.region||'')+'（'+esc(o.dynasty||'')+'）</p>';
+        if(o.basis) h+='<p>'+esc(o.basis)+'</p>';
+        var srcs=fm.sources||[];
+        if(srcs.length){ h+='<p><span class="k">逐姓来源</span></p><ol class="srcList">';
+          srcs.forEach(function(s){ h+='<li>'+esc(s)+'</li>'; }); h+='</ol>'; }
+      }
+    } else if(ch!=='肖') {
+      h+='<p>本姓目前没有逐姓地理史料，因此<strong>不标专属发祥地、不编造家谱出处</strong>。'
+        +'画面演示的是所有姓共用的迁徙事件走廊，以及现代常见姓氏的省级分布骨架。</p>';
+      if(r.rank) h+='<p><span class="k">铺开档位</span><br>'+esc(C.tierLabel[state.tier]||'')
+        +'：近现代省内铺开点覆盖率 '+Math.round((C.tierRatio[state.tier]||0)*100)+'%。'
+        +'该分档只来自现代姓氏排名名录，不按人口数加权。</p>';
+      else h+='<p><span class="k">未入现代常见 600 名</span><br>没有「31 省均有分布」的公开依据，'
+        +'因此近现代不做全国铺开，也不显示该条官方结论。</p>';
+      var evs=r.ev||[];
+      if(evs.length){
+        h+='<p><span class="k">可引用的官方结论</span></p><ul class="srcList">';
+        evs.forEach(function(x){
+          var p=x.split(':'), k=p[0], v=p.slice(1).join(':');
+          var label={max:'人口最多省份',top:'第一大姓',cnt:'有公开人数的省份',tw:'台湾前十大姓'}[k]||k;
+          h+='<li>'+esc(label)+'：'+esc(v)+'</li>';
+        });
+        h+='</ul>';
+      }
+    }
+    h+='</div>';
+    h+='<div class="infoCard"><h3>这套演示怎么读</h3>'
+      +'<p>时间轴共 '+N+' 格：西周分封前 3 格粗步长只作起源示意，之后每 100 年一格直到当代。'
+      +'走西口、闯关东、湖广填四川等 '+(C.events?Object.keys(C.events).length:19)
+      +' 次大迁徙，在各自的世纪窗口内逐格给迁入地加点，不是一次冒出。</p>'
+      +'<p><strong>点数不是人口数</strong>，只表示聚居证据强度与延续世纪数；'
+      +'刻意不按人口密度加权，避免输出未经审核的人口分布专题图。</p>'
+      +'<p>画面不画任何国界 / 省界 / 历史疆域，不做分省设色，不用箭头。'
+      +'底图采用腾讯地图 JavaScript API GL 提供的现行标准矢量底图（官方发布、带审图号）；'
+      +'本项目仅在其上叠加离散点，不绘制也不修改任何地图界线。</p>'
+      +'<p><strong>本项目为个人研究用途，非商用</strong>。点密度只表达史料聚居证据，'
+      +'不代表人口统计，也不构成地图编制成果。</p>'
+      +'<p class="note">当前底图：'+(state.mapReady?'官方矢量底图（已加载）':'行政单元基底点（官方底图未加载）')+'</p>'
+      +'</div>';
+    /* 事件出处不在画面上堆长文，改放到「依据」抽屉里按当前世纪展示 */
+    var cur=eventsAt(Math.max(0,Math.min(N-1,Math.round(state.t))));
+    h+='<div class="infoCard"><h3>本世纪事件出处</h3>';
+    if(!cur.length) h+='<p class="note">这一格没有活跃迁徙事件。</p>';
+    else {
+      h+='<ul class="srcList">';
+      cur.forEach(function(id){
+        var d=EV[id]||{};
+        h+='<li><strong>'+esc(d.n||id)+'</strong>（'+esc(d.t||'B')+' 级）'
+          +(d.src?'<br>'+esc(d.src):'')+'</li>';
+      });
+      h+='</ul>';
+    }
+    h+='</div>';
+    h+='<div class="infoCard"><h3>数据来源</h3><p class="note">'
+      +esc((C.listMeta&&C.listMeta.coverage)||'')+'</p>'
+      +'<p class="note">《百家姓》全文 503 姓（442 单姓 + 61 复姓）、现代常见姓氏排名 1—600、'
+      +'公安部《全国姓名报告》系列、台湾省内政部户政司《全国姓名统计分析》并列展示，'
+      +'不同口径不相加、不互相校验。</p></div>';
+    $('infoBody').innerHTML=h;
+  }
+
+  /* ---------- 微信 JS-SDK 分享 ---------- */
+  function shareData(){
+    var ch=state.ch, r=state.row||{}, cfg=CFG;
+    var link=cfg.shareLink||location.href.split('#')[0];
+    var link2=link+(link.indexOf('?')>=0?'&':'?')+'s='+encodeURIComponent(ch);
+    var origin='';
+    if(state.full) origin=(((C.fullMeta||{})[ch]||{}).origin||{}).region||'得姓地';
+    return {
+      title: ch+'姓的历史轨迹',
+      desc:state.full
+        ? ('从'+origin+'出发，看历次大迁徙如何把这个姓铺向全国。')
+        : ('西周分封到闯关东，'+N+' 格共用时间轴演示一个姓的扩散与繁衍。'),
+      link:link2,
+      imgUrl:cfg.shareImg||''
+    };
+  }
+  function updateShare(){
+    var d=shareData();
+    document.title=d.title;
+    var og=document.querySelector('meta[property="og:title"]'); if(og) og.setAttribute('content',d.title);
+    var ogd=document.querySelector('meta[property="og:description"]'); if(ogd) ogd.setAttribute('content',d.desc);
+    if(window.wx&&window.wx.updateAppMessageShareData){
+      try{
+        wx.updateAppMessageShareData({title:d.title,desc:d.desc,link:d.link,imgUrl:d.imgUrl});
+        wx.updateTimelineShareData({title:d.title,link:d.link,imgUrl:d.imgUrl});
+      }catch(e){}
+    }
+  }
+  var wxTried=false;
+  function initWx(){
+    if(wxTried) return;
+    if(!CFG.wxSignUrl || !window.wx || !window.wx.config) return;
+    wxTried=true;
+    var url=location.href.split('#')[0];
+    fetch(CFG.wxSignUrl+(CFG.wxSignUrl.indexOf('?')>=0?'&':'?')+'url='+encodeURIComponent(url))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        wx.config({debug:false,appId:d.appId,timestamp:d.timestamp,
+          nonceStr:d.nonceStr,signature:d.signature,
+          jsApiList:['updateAppMessageShareData','updateTimelineShareData']});
+        wx.ready(updateShare);
+      }).catch(function(){ /* 签名服务不可用时退回微信默认抓取 */ });
+  }
+
+  /* ---------- 交互绑定 ---------- */
+  function bind(){
+    $('btnPick').addEventListener('click',function(){ renderGrids(); openSheet('picker'); });
+    $('btnPickClose').addEventListener('click',function(){ closeSheet('picker'); });
+    $('btnInfo').addEventListener('click',function(){ renderInfo(); openSheet('info'); });
+    $('btnInfoClose').addEventListener('click',function(){ closeSheet('info'); });
+    $('btnPlay').addEventListener('click',togglePlay);
+    $('btnSound').addEventListener('click',function(){
+      soundOn=!soundOn; var b=$('btnSound'); if(b) b.textContent=soundOn?'🔊':'🔇';
+      if(soundOn) ensureBgm(); else { var a=$('bgm'); if(a){ try{ a.pause(); }catch(e){} } }
+    });
+    $('btnPrev').addEventListener('click',function(){ stepBy(-1); });
+    $('btnNext').addEventListener('click',function(){ stepBy(1); });
+    /* 肖 → 萧：一键去重选萧，并收起说明卡 */
+    var xj=$('xiaoJump'); if(xj) xj.addEventListener('click',function(){ var xa=$('xiaoAlert'); if(xa) xa.style.display='none'; selectSurname('萧',false); });
+    var xc=$('xiaoClose'); if(xc) xc.addEventListener('click',function(){ var xa=$('xiaoAlert'); if(xa) xa.style.display='none'; });
+    $('searchBox').addEventListener('input',renderGrids);
+    bindGrid($('hotGrid')); bindGrid($('allGrid'));
+
+    var scrubbing=false;
+    function scrubAt(clientX){
+      var box=$('scrub').getBoundingClientRect();
+      var p=Math.max(0,Math.min(1,(clientX-box.left)/Math.max(1,box.width)));
+      state.elapsed=p*state.totalMs;
+      state.t=tFromElapsed(state.elapsed);
+      render();
+    }
+    $('scrub').addEventListener('touchstart',function(e){ scrubbing=true; stop(); scrubAt(e.touches[0].clientX); e.preventDefault(); },{passive:false});
+    $('scrub').addEventListener('touchmove',function(e){ if(scrubbing){ scrubAt(e.touches[0].clientX); e.preventDefault(); } },{passive:false});
+    $('scrub').addEventListener('touchend',function(){ scrubbing=false; });
+    $('scrub').addEventListener('mousedown',function(e){ scrubbing=true; stop(); scrubAt(e.clientX); });
+    window.addEventListener('mousemove',function(e){ if(scrubbing) scrubAt(e.clientX); });
+    window.addEventListener('mouseup',function(){ scrubbing=false; });
+
+    /* 地图区左右滑动切换世纪（地图不可拖动，canvas 不吃事件） */
+    var sx=0, sy=0, sw=false;
+    $('app').addEventListener('touchstart',function(e){
+      if(e.target.closest && e.target.closest('.sheet,#ctrl,#top,#eventPanel')) return;
+      sx=e.touches[0].clientX; sy=e.touches[0].clientY; sw=true;
+    },{passive:true});
+    $('app').addEventListener('touchend',function(e){
+      if(!sw) return; sw=false;
+      var dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+      if(Math.abs(dx)>52&&Math.abs(dx)>Math.abs(dy)*1.4) stepBy(dx<0?1:-1);
+    },{passive:true});
+
+    document.addEventListener('keydown',function(e){
+      if(e.code==='Space'){ e.preventDefault(); togglePlay(); }
+      else if(e.code==='ArrowRight'){ e.preventDefault(); stepBy(1); }
+      else if(e.code==='ArrowLeft'){ e.preventDefault(); stepBy(-1); }
+    });
+    window.addEventListener('resize',function(){
+      sizeCanvas();
+      FIT_ZOOM=fitZoom(window.innerWidth,window.innerHeight);
+      /* 视口从竖屏切到横屏时，腾讯地图 GL 内部容器尺寸可能仍是旧值，
+         projectToContainer 会把东半部的点算到屏幕外。先 resize 容器，
+         再重设 zoom/center，最后分两次补画（瓦片与投影异步刷新）。 */
+      try{
+        if(map){
+          if(typeof map.resize==='function') map.resize();
+          if(map.setZoom) map.setZoom(FIT_ZOOM);
+          if(map.setCenter) map.setCenter(new TMap.LatLng(MAP_CENTER.lat,MAP_CENTER.lng));
+        }
+      }catch(e){}
+      render();
+      setTimeout(render,320); setTimeout(render,900);
+    });
+  }
+
+  /* ---------- 启动 ---------- */
+  function boot(){
+    if(started) return; started=true;
+    dotCanvas=$('dots');
+    if(dotCanvas&&dotCanvas.getContext){ try{ dotCtx=dotCanvas.getContext('2d'); }catch(e){ dotCtx=null; } }
+    if(!dotCtx) diag('当前浏览器不支持 canvas，无法演示。');
+    sizeCanvas(); makeMap(); bind();
+    /* jweixin 是 async 加载的，DOMContentLoaded 时可能还没到位，load 后再试一次（幂等） */
+    initWx(); window.addEventListener('load',initWx); setTimeout(initWx,1200);
+
+    var initial='';
+    try{
+      var m=location.href.match(/[?&]s=([^&#]+)/);
+      if(m) initial=decodeURIComponent(m[1]);
+      else if(location.hash.length>1) initial=decodeURIComponent(location.hash.slice(1));
+      else initial=localStorage.getItem('h5_last_surname')||'';
+    }catch(e){}
+    if(!ROW_BY_CH[initial]) initial='李';
+    selectSurname(initial,true);
+    render();
+
+    /* 调试 / 自动化接口 */
+    window.__h5 = {
+      ready:true, state:state, core:C,
+      get mapReady(){ return state.mapReady; },
+      get map(){ return map; },
+      get fitZoom(){ return FIT_ZOOM; },
+      project:function(lat,lng){ return project(lat,lng); },
+      get drawn(){ return lastDrawn; },
+      get surnameCount(){ return LIST.length; },
+      get fullChars(){ return C.fullChars||[]; },
+      setSurname:selectSurname,
+      setStep:function(i){ return setT(i); },
+      eventsAt:eventsAt,
+      play:play, stop:stop, render:render,
+      openPicker:function(){ renderGrids(); $('picker').classList.add('open'); },
+      search:function(q){ $('searchBox').value=q; renderGrids(); return $('allGrid').children.length; },
+      frameInfo:function(){
+        var i=Math.max(0,Math.min(N-1,Math.round(state.t)));
+        return {ch:state.ch,step:i,era:(STEPS[i]||{}).era,
+          sites:((state.frames||[])[i]||[]).length,
+          events:eventsAt(i).map(function(id){ return (EV[id]||{}).n||id; }),
+          drawn:lastDrawn,full:state.full,tier:state.tier,
+          totalMs:state.totalMs,playing:state.playing};
+      }
+    };
+  }
+
+  $('brandId').textContent=CFG.brand||'TigerFRM';
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initMap);
+  else initMap();
+})();
+</script>
+</body>
+</html>

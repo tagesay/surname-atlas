@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>姓氏繁衍 · 共用百年时间轴（纯可视化）</title>
+<script type="text/javascript">
+/* sandbox iframe 下 localStorage/sessionStorage 不可用时，腾讯地图 SDK 会在
+   TMap.Map 构造内部读存储并抛 SecurityError。SDK 加载前换成内存垫片。 */
+(function(){
+  function works(s){ try{ s.setItem('__wb_probe__','1'); s.removeItem('__wb_probe__'); return true; }catch(e){ return false; } }
+  function makeStore(){
+    var mem={};
+    return { getItem:function(k){k=String(k);return Object.prototype.hasOwnProperty.call(mem,k)?mem[k]:null;},
+      setItem:function(k,v){mem[String(k)]=String(v);}, removeItem:function(k){delete mem[String(k)];},
+      clear:function(){mem={};}, key:function(i){var ks=Object.keys(mem);return (i>=0&&i<ks.length)?ks[i]:null;},
+      get length(){return Object.keys(mem).length;} };
+  }
+  ['localStorage','sessionStorage'].forEach(function(name){
+    var ok=false; try{ ok=works(window[name]); }catch(e){ ok=false; }
+    if(ok) return;
+    var fake=makeStore();
+    try{ Object.defineProperty(window,name,{configurable:true,enumerable:true,get:function(){return fake;}}); }
+    catch(e){ try{ window[name]=fake; }catch(e2){} }
+  });
+})();
+</script>
+<script type="text/javascript">
+  window._TMapSecurityConfig = {
+    serviceHost: 'http://127.0.0.1:__WB_HTTP_PORT__/_TMapService/_wbt/__WB_TMAP_SECRET__',
+  };
+</script>
+<script src="https://map.qq.com/api/gljs?v=1.exp"></script>
+<style>
+  :root{ --ink:#18212c; --sub:#5a6878; --hot:#e5342a; }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#eef1f3;
+    font-family:system-ui,-apple-system,"Microsoft YaHei","PingFang SC",sans-serif;}
+  #map{position:fixed;inset:0;width:100vw;height:100vh;z-index:0}
+  /* 点密度层：自绘 canvas。只画离散小圆点：不画面、不画边界、不用箭头 */
+  #dots{position:fixed;inset:0;width:100vw;height:100vh;z-index:4;pointer-events:none}
+
+  /* 姓氏字标 —— 唯一的主体标识，深色墨字 + 白描边，保证浅色底图上可读 */
+  #glyph{position:fixed;left:44px;top:30px;z-index:6;pointer-events:none;
+    font-size:96px;line-height:1;font-weight:800;letter-spacing:.02em;color:var(--ink);
+    text-shadow:0 0 3px #fff,0 0 12px rgba(255,255,255,.95),0 3px 22px rgba(255,255,255,.8);}
+
+  /* 年代刻度 —— 不是口播字幕，只是时间轴读数 */
+  /* 年代刻度放顶部中央：底图南部（华南/港澳台）常是铺开最密的区域，
+     放底部会盖住点位；顶部中央是相对空白的北境，不遮数据。 */
+  #era{position:fixed;left:50%;transform:translateX(-50%);top:26px;z-index:6;
+    pointer-events:none;text-align:center;white-space:nowrap;
+    background:rgba(255,255,255,.76);border:1px solid rgba(24,33,44,.10);
+    border-radius:10px;padding:7px 20px 8px;backdrop-filter:blur(6px);}
+  #eraMain{font-size:27px;font-weight:750;letter-spacing:.06em;color:var(--ink);line-height:1.15}
+  #eraSub{font-size:11.5px;letter-spacing:.22em;color:var(--sub);margin-top:3px}
+  /* 迁徙事件标注（右下角）：事件名 + 事件背景简介。
+     只在「本世纪确实有事件窗口」时出现，无事件的格保持画面干净。
+     这是画面文字标注，不是口播字幕。用户 2026-11-13 要求。 */
+  #eventPanel{position:fixed;right:26px;bottom:26px;z-index:6;pointer-events:none;
+    width:min(430px,33vw);max-height:72vh;overflow:hidden;display:none;
+    background:rgba(255,255,255,.88);border:1px solid rgba(24,33,44,.14);
+    border-left:3px solid var(--hot);border-radius:9px;
+    padding:13px 16px 12px;backdrop-filter:blur(7px);
+    box-shadow:0 4px 22px rgba(20,32,44,.13)}
+  #eventPanel .hd{font-size:13px;letter-spacing:.20em;color:var(--sub);font-weight:700;margin-bottom:10px}
+  #eventPanel .ev{margin-top:9px;padding-top:9px;border-top:1px solid rgba(24,33,44,.10)}
+  #eventPanel .ev.first{margin-top:0;padding-top:0;border-top:0}
+  #eventPanel .nm{font-size:17px;font-weight:750;color:#a72a20;line-height:1.32}
+  #eventPanel .yr{font-size:12.5px;color:var(--sub);font-weight:500;letter-spacing:.06em;margin-top:2px}
+  #eventPanel .br{font-size:15px;line-height:1.60;color:#26313d;margin-top:4px}
+  #eventPanel .more{font-size:12.5px;color:var(--sub);margin-top:8px}
+
+  #diag{position:fixed;left:16px;top:16px;z-index:20;display:none;max-width:560px;
+    background:#2a1210;color:#fff1e9;border:1px solid #ff9a4d;border-radius:8px;
+    padding:8px 12px;font-size:12px;line-height:1.6}
+  #app.clean #glyph,#app.clean #era,#app.clean #eventPanel{display:none}
+  #app.overlay #glyph{font-size:58px;letter-spacing:.06em}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+  <canvas id="dots"></canvas>
+  <div id="glyph">李</div>
+  <div id="era"><div id="eraMain"></div><div id="eraSub"></div></div>
+  <div id="eventPanel"></div>
+  <div id="diag"></div>
+</div>
+
+<script id="atlas-timeline" type="application/json">__ATLAS_TIMELINE__</script>
+<script id="atlas-century" type="application/json">__ATLAS_CENTURY__</script>
+<script id="atlas-events" type="application/json">__ATLAS_EVENTS__</script>
+<script id="atlas-places" type="application/json">__ATLAS_PLACES__</script>
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  function jload(id){
+    try { return JSON.parse($(id).textContent); } catch(e){ return null; }
+  }
+  function diag(msg){
+    var d=$('diag'); if(!d) return;
+    d.textContent=msg; d.style.display='block';
+  }
+
+  var TL = jload('atlas-timeline') || {steps:[]};
+  var CA = jload('atlas-century') || {steps:[], events:[], surnames:{}};
+  var EV = jload('atlas-events') || {events:[]};
+  var PL = jload('atlas-places') || {};
+  var STEPS = (CA.steps && CA.steps.length) ? CA.steps : (TL.steps || []);
+  var N = STEPS.length;
+  var CHARS = Object.keys(CA.surnames || {});
+  var EV_BY_ID = {};
+  (EV.events || []).forEach(function(e){ EV_BY_ID[e.id]=e; });
+
+  /* 单色醒目点。浅色合规底图上，朱红比金色对比度更高；全片只有这一种颜色。
+     基底层是与姓无关的行政单元中心点（淡蓝灰），用于表达「有人区」骨架。 */
+  var DOT_INK = '#e5342a';
+  var BASE_INK = 'rgba(86,116,148,.32)';
+
+  var state = {
+    ch: CHARS[0] || '', t: 0, playing:false, speed:1,
+    base:true, hud:true, events:true, anim:true, fade:1,
+    overlay:null              /* 非 null 时把多个姓同时画在同一张底图上（同色、非排他） */
+  };
+  var STEP_MS = 950;          /* 交互预览每格停留时长；出片由脚本控制进度 */
+  var map=null, dotCanvas=null, dotCtx=null, dotW=0, dotH=0, dotDPR=1;
+  var lastTs=0, rafId=0;
+
+  /* 自适应初始缩放：1280×720 时约为 4.7，1920×1080 时约为 5.25，
+     保证不同出片分辨率下「中国全域」始终是同一个取景框，不会大屏变小图。 */
+  function fitZoom(w,h){
+    var zW=Math.log(Math.max(1,w)*360/(69*256))/Math.LN2;
+    var zH=Math.log(Math.max(1,h)*360/(40*256))/Math.LN2;
+    return Math.max(3.0,Math.min(7.5,Math.min(zW,zH)));
+  }
+  var FIT_ZOOM = fitZoom(window.innerWidth, window.innerHeight);
+
+  /* ---------- 合规底图：现行标准矢量底图，不画任何边界/历史疆域 ---------- */
+  if (typeof TMap !== 'undefined' && TMap && TMap.Map) {
+    try {
+      map = new TMap.Map('map', {
+        zoom: FIT_ZOOM,
+        center: new TMap.LatLng(34.6, 106.5),
+        showControl: false,          /* 隐藏罗盘与缩放按钮，保持画面干净 */
+        doubleClickZoom: false,
+        draggable: false,
+        scrollable: false
+      });
+    } catch(e){ map=null; diag('底图初始化失败：'+e.message); }
+  } else {
+    diag('腾讯地图 SDK 未加载：当前为无底图模式，画面不可用于发布。');
+  }
+
+  dotCanvas = $('dots');
+  if (dotCanvas && dotCanvas.getContext) {
+    try { dotCtx = dotCanvas.getContext('2d'); } catch(e){ dotCtx=null; }
+  }
+  if (!dotCtx) diag('点密度 canvas 不可用，无法出片。');
+
+  function sizeCanvas(){
+    if (!dotCanvas || !dotCtx) return;
+    dotDPR = Math.min(2, window.devicePixelRatio || 1);
+    dotW = window.innerWidth; dotH = window.innerHeight;
+    dotCanvas.width = Math.round(dotW*dotDPR);
+    dotCanvas.height = Math.round(dotH*dotDPR);
+    dotCanvas.style.width = dotW+'px'; dotCanvas.style.height = dotH+'px';
+    dotCtx.setTransform(dotDPR,0,0,dotDPR,0,0);
+  }
+  sizeCanvas();
+  window.addEventListener('resize', function(){
+    sizeCanvas();
+    try { if (map && map.setZoom) map.setZoom(fitZoom(window.innerWidth,window.innerHeight)); } catch(e){}
+    render();
+  });
+
+  /* ---------- 经纬度 → 屏幕像素 ---------- */
+  function zoom(){
+    try { if (map && map.getZoom) return +map.getZoom(); } catch(e){}
+    return FIT_ZOOM;
+  }
+  function project(lat,lng){
+    if (map && typeof map.projectToContainer === 'function'){
+      try {
+        var q = map.projectToContainer(new TMap.LatLng(lat,lng));
+        if (q && isFinite(q.x) && isFinite(q.y) && Math.abs(q.x)<1e5 && Math.abs(q.y)<1e5) return [q.x,q.y];
+      } catch(e){}
+    }
+    var z=FIT_ZOOM, clat=34.6, clng=106.5;
+    try { if (map && map.getZoom) z=+map.getZoom(); } catch(e){}
+    try { if (map && map.getCenter){ var c=map.getCenter(); clat=+c.lat; clng=+c.lng; } } catch(e){}
+    var ws=256*Math.pow(2,z);
+    function merc(la,ln){ var sn=Math.sin(la*Math.PI/180);
+      return [(ln+180)/360*ws,(0.5-Math.log((1+sn)/(1-sn))/(4*Math.PI))*ws]; }
+    var a=merc(clat,clng), b=merc(lat,lng);
+    return [dotW/2+(b[0]-a[0]), dotH/2+(b[1]-a[1])];
+  }
+
+  /* ---------- 确定性点簇：同姓同地同帧永远一致 ---------- */
+  function hashStr(s){ var h=2166136261; for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
+  function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  var candCache = {};
+  function candidates(ch, place){
+    var k=ch+'|'+place;
+    if (candCache[k]) return candCache[k];
+    var rnd=mulberry32(hashStr(k)), phase=rnd()*Math.PI*2, arr=[];
+    for (var i=0;i<16;i++){
+      var ang=phase+i*2.39996323;
+      var rad=Math.sqrt((i+0.5)/16)*(0.82+rnd()*0.3);
+      arr.push({ox:Math.cos(ang)*rad, oy:Math.sin(ang)*rad, thr:i+(rnd()-0.5)*0.5});
+    }
+    candCache[k]=arr; return arr;
+  }
+
+  /* ---------- 帧间插值：把 34 个离散格变成连续生长过程 ---------- */
+  function frameMap(idx, ch){
+    var fr=(CA.surnames[ch] && CA.surnames[ch].frames[idx]) || {sites:[]};
+    var m={};
+    (fr.sites||[]).forEach(function(s){ m[s.place]=s; });
+    return m;
+  }
+  function interpolated(t){
+    var i0=Math.max(0,Math.min(N-1,Math.floor(t)));
+    var i1=Math.min(N-1,i0+1);
+    var f=Math.max(0,Math.min(1,t-i0));
+    var chars = (state.overlay && state.overlay.length) ? state.overlay : [state.ch];
+    var A={}, B={}, keys={}, out=[];
+    chars.forEach(function(ch){
+      var a=frameMap(i0,ch), b=frameMap(i1,ch);
+      Object.keys(a).forEach(function(pl){ var k=ch+'|'+pl; A[k]=a[pl]; keys[k]=1; });
+      Object.keys(b).forEach(function(pl){ var k=ch+'|'+pl; B[k]=b[pl]; keys[k]=1; });
+    });
+    Object.keys(keys).forEach(function(k){
+      var sep=k.indexOf('|'), ch=k.slice(0,sep), pl=k.slice(sep+1);
+      var a=A[k], b=B[k];
+      if (a && b)      out.push({ ch:ch, place:pl, s:b, n:a.n+(b.n-a.n)*f, w:1 });
+      else if (!a && b) out.push({ ch:ch, place:pl, s:b, n:b.n, w:f });      /* 新地点渐显 */
+      else if (a && !b) out.push({ ch:ch, place:pl, s:a, n:a.n, w:1-f });    /* 旧地点渐隐 */
+    });
+    return { list:out, i0:i0, i1:i1, f:f };
+  }
+
+  /* ---------- 绘制 ---------- */
+  function drawBase(){
+    var lvR={province:1.25,city:0.95,county:0.7,district:0.7};
+    var lvA={province:0.34,city:0.24,county:0.18,district:0.18};
+    var keys=Object.keys(PL);
+    for (var i=0;i<keys.length;i++){
+      var p=PL[keys[i]]; if(!p) continue;
+      var xy=project(p.lat,p.lng);
+      if (xy[0]<-8||xy[1]<-8||xy[0]>dotW+8||xy[1]>dotH+8) continue;
+      dotCtx.globalAlpha=(lvA[p.level]!==undefined?lvA[p.level]:0.2)*state.fade;
+      dotCtx.fillStyle=BASE_INK;
+      dotCtx.beginPath(); dotCtx.arc(xy[0],xy[1],lvR[p.level]!==undefined?lvR[p.level]:0.8,0,Math.PI*2); dotCtx.fill();
+    }
+  }
+
+  function drawSites(interp){
+    var z=zoom(), ws=256*Math.pow(2,z), kpx=ws/360;
+    var list=interp.list, drawn=0;
+    for (var i=0;i<list.length;i++){
+      var it=list[i], s=it.s, p=PL[it.place];
+      if (!p || it.w<=0.01 || s.n<=0.02) continue;
+      var xy=project(p.lat,p.lng);
+      if (xy[0]<-40||xy[1]<-40||xy[0]>dotW+40||xy[1]>dotH+40) continue;
+      var cosv=Math.max(0.2,Math.cos(p.lat*Math.PI/180));
+      /* 点簇半径按证据强度放大，但每颗点保持小而离散 —— 要能数得出「点多 / 点少」，
+         不能让十几颗点糊成一个色斑（那又变回被否掉的热力图了）。 */
+      var spread=0.18+Math.min(1,s.n/7)*0.42;
+      var kx=kpx*spread, ky=(kpx/cosv)*spread*0.85;
+      var cand=candidates(it.ch,it.place);
+      /* 十姓叠加时每簇只取前 8 个候选点，避免 10 姓 × 800 处 × 16 点拖慢逐帧出片 */
+      var candN = state.overlay ? Math.min(8,cand.length) : cand.length;
+      drawn++;
+      if (s.spread || s.kind==='spread'){
+        /* 省内铺开点：每处一个清晰小点。不能套用点簇阈值，否则近现代又退化成「没几个点」。 */
+        var tierA=(s.tierLevel==='maxpop')?1.0:(s.tierLevel==='top'?0.90:0.78);
+        var tierR=(s.tierLevel==='maxpop')?3.0:(s.tierLevel==='top'?2.5:2.0);
+        dotCtx.globalAlpha=tierA*it.w*state.fade;
+        dotCtx.fillStyle=DOT_INK;
+        dotCtx.beginPath();
+        dotCtx.arc(xy[0]+cand[0].ox*kx*0.5, xy[1]+cand[0].oy*ky*0.5, tierR, 0, Math.PI*2);
+        dotCtx.fill();
+      } else {
+        /* 史料锚点 / 事件走廊点：点簇，点数 = 证据强度 + 延续世纪数 */
+        for (var j=0;j<candN;j++){
+          var pt=cand[j];
+          var a=Math.min(1,Math.max(0,it.n-pt.thr))*it.w*state.fade;
+          if (a<=0.02) continue;
+          /* 十姓叠加时点位重叠严重，改画更细更淡的点，避免糊成一片色斑 */
+          var ov=!!state.overlay;
+          dotCtx.globalAlpha=a*(ov?0.55:0.95);
+          dotCtx.fillStyle=DOT_INK;
+          dotCtx.beginPath();
+          dotCtx.arc(xy[0]+pt.ox*kx, xy[1]+pt.oy*ky,
+                     ov ? (0.9+0.5*a) : (1.2+0.9*a), 0, Math.PI*2);
+          dotCtx.fill();
+        }
+      }
+    }
+    return drawn;
+  }
+
+  var lastDrawn=0;
+  function render(){
+    if (!dotCtx) return;
+    dotCtx.clearRect(0,0,dotW,dotH);
+    if (state.base) drawBase();
+    var interp=interpolated(state.t);
+    lastDrawn=drawSites(interp);
+    dotCtx.globalAlpha=1;
+    updateHud(interp);
+  }
+
+  /* ---------- 事件标注（右下角）：事件名 + 事件背景简介 ---------- */
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function centurySpan(d){
+    if (!d || d.start===undefined || d.end===undefined) return '';
+    function lab(c){ return c<0 ? ('前'+Math.abs(c)+'世纪') : (c+'世纪'); }
+    return (d.start===d.end) ? lab(d.start) : (lab(d.start)+'—'+lab(d.end));
+  }
+  function renderEventPanel(i){
+    var panel=$('eventPanel');
+    if (!panel) return;
+    var fr=(CA.surnames[state.ch] && CA.surnames[state.ch].frames[i]) || {};
+    var list=(fr.events||[]).slice();
+    if (!state.events || !list.length){ panel.style.display='none'; panel.innerHTML=''; return; }
+    /* 全部展示，不折叠、不截断。A 级（正史/官方）优先，同等级按窗口起点早的在前。 */
+    list.sort(function(a,b){
+      var ta=(a.tier==='A')?0:1, tb=(b.tier==='A')?0:1;
+      if (ta!==tb) return ta-tb;
+      return (((EV_BY_ID[a.id]||{}).start)||0)-(((EV_BY_ID[b.id]||{}).start)||0);
+    });
+    var html='<div class="hd">迁徙事件 · 本世纪 · '+list.length+' 条</div>';
+    list.forEach(function(e,ix){
+      var d=EV_BY_ID[e.id]||{};
+      html+='<div class="ev'+(ix===0?' first':'')+'">'
+          + '<div class="nm">'+esc(e.name)+'</div>'
+          + '<div class="yr">'+esc(centurySpan(d))+' · '+esc(e.tier||'B')+' 级依据</div>'
+          + (d.brief ? '<div class="br">'+esc(d.brief)+'</div>' : '')
+          + '</div>';
+    });
+    panel.innerHTML=html;
+    panel.style.display='block';
+  }
+
+  /* ---------- 画面文字：姓氏字标 + 年代刻度 + 事件标注，没有口播 / 字幕 ---------- */
+  function updateHud(interp){
+    var app=$('app');
+    app.classList.toggle('clean',!state.hud);
+    var i=Math.max(0,Math.min(N-1,Math.round(state.t)));
+    var st=STEPS[i] || {};
+    var ov=state.overlay && state.overlay.length;
+    app.classList.toggle('overlay',!!ov);
+    $('glyph').textContent = ov ? '百家姓' : state.ch;
+    $('eraMain').textContent = (st.mode==='origin')
+      ? ((st.era||'').split(' · ')[0] || st.label || '')
+      : (st.label || '');
+    $('eraSub').textContent = st.dynasty || '';
+    renderEventPanel(i);
+  }
+
+  /* ---------- 播放 ---------- */
+  function setProgress(t){
+    state.t=Math.max(0,Math.min(N-1,+t||0));
+    render();
+    return state.t;
+  }
+  function stop(){
+    state.playing=false;
+    if (rafId && typeof cancelAnimationFrame==='function'){ cancelAnimationFrame(rafId); rafId=0; }
+  }
+  function tick(ts){
+    if (!state.playing) return;
+    if (!lastTs) lastTs=ts;
+    var dt=Math.min(120,ts-lastTs); lastTs=ts;
+    state.t += dt*state.speed/STEP_MS;
+    if (state.t>=N-1){ state.t=N-1; render(); stop(); return; }
+    render();
+    rafId=requestAnimationFrame(tick);
+  }
+  function play(){ if(state.playing) return; state.playing=true; lastTs=0; rafId=requestAnimationFrame(tick); }
+
+  function setSurname(x){
+    var ch = (typeof x==='number') ? CHARS[x] : x;
+    if (!ch || !CA.surnames[ch]) return false;
+    state.ch=ch; render(); return true;
+  }
+
+  document.addEventListener('keydown', function(e){
+    if (e.code==='Space'){ e.preventDefault(); state.playing?stop():play(); }
+    else if (e.code==='ArrowRight'){ e.preventDefault(); stop(); setProgress(Math.min(N-1,Math.floor(state.t)+1)); }
+    else if (e.code==='ArrowLeft'){ e.preventDefault(); stop(); setProgress(Math.max(0,Math.ceil(state.t)-1)); }
+  });
+  if (map && typeof map.on==='function'){
+    ['center_changed','zoom_changed','bounds_changed','pan','zoom'].forEach(function(ev){
+      try { map.on(ev,render); } catch(e){}
+    });
+  }
+
+  /* ---------- 出片 / 调试接口 ---------- */
+  window.__atlas = {
+    ready:true,
+    state:state,
+    steps:STEPS,
+    events:EV.events,
+    surnames:CHARS,
+    places:PL,
+    get mapReady(){ return !!map; },
+    get drawn(){ return lastDrawn; },
+    setProgress:setProgress,
+    setStep:function(i){ return setProgress(i); },
+    setSurname:setSurname,
+    setOverlay:function(list){
+      state.overlay = (list && list.length)
+        ? list.filter(function(c){ return !!CA.surnames[c]; }) : null;
+      render(); return state.overlay;
+    },
+    setBase:function(b){ state.base=!!b; render(); },
+    setHud:function(b){ state.hud=!!b; render(); },
+    setEvents:function(b){ state.events=!!b; render(); },
+    setAnim:function(b){ state.anim=!!b; },
+    setSpeed:function(v){ state.speed=+v||1; },
+    setFade:function(x){ state.fade=Math.max(0,Math.min(1,+x||0)); render(); },
+    render:render,
+    play:play,
+    stop:stop,
+    frameInfo:function(){
+      var i=Math.max(0,Math.min(N-1,Math.round(state.t)));
+      var fr=(CA.surnames[state.ch]&&CA.surnames[state.ch].frames[i])||{};
+      return { ch:state.ch, step:i, t:state.t, stepId:(STEPS[i]||{}).id,
+               era:(STEPS[i]||{}).era, sites:(fr.sites||[]).length,
+               events:(fr.events||[]).map(function(e){return e.name;}), drawn:lastDrawn };
+    }
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>

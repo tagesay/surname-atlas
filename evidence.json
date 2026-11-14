@@ -1,0 +1,237 @@
+{
+  "meta": {
+    "title": "可考记录证据层 · 李姓打样",
+    "version": "0.1.0-pilot",
+    "compiledAt": "2026-11-12",
+    "scope": "逐姓接入架构：目前仅「李」姓已接入。其余 9 姓切到「可考记录」样式时明确提示待接入并留白，不套用示意骨架冒充证据。",
+    "separation": "本文件与 surnames.json（示意骨架）、sources.json（可引用的官方结论）物理隔离。三者的数值不得混算、不得互相校验。",
+    "semantics": {
+      "point": "一个小点 = 一条带出处、可核查的证据记录。点位落在该证据所覆盖行政区的代表城市坐标上。",
+      "dotCount": "某地点的小点个数 = 该地点可引用的独立证据条数。不为画面好看补足点数，不做跨期插值。",
+      "blank": "某期没有任何可核查的逐年姓氏记录时整期留白。留白表示「无可引用记录」，不表示「当地没有此姓」或「当时人少」。",
+      "notPopulation": "证据条数 ≠ 人口数 ≠ 人口密度；省级 / 市级结论以代表城市落点，不得误读为该城市的单独统计。",
+      "noInterpolation": "不使用首现折半、繁衍增长、跨期衰减等演示系数。没有记录就是没有记录。",
+      "sourceId": "每个点都挂 sourceId 与 factId，可在「权威数据核查」弹层逐条查到发布机构、年份、原文口径与链接。"
+    },
+    "hardLimit": "公开渠道不存在按朝代、按地点、按姓氏的逐年人口数据。公安部《全国姓名报告》与各省七普都是当代截面；CBDB 人物籍贯与家谱迁徙事件虽有时间戳，但需要注册授权或下载离线数据库后才能按姓聚合，本机构建环境未能取得。因此本打样只接入了当代可核查证据，前 4 期如实留白。",
+    "verifiedSourcesNote": "本层所有当代证据条目的原文、发布机构、日期、口径与链接，均已在 sources.json 中逐条核实并标注；本文件只做「证据 → 地点」的映射，不新增任何数值。",
+    "officialPrecedent": "已核实：上海图书馆数字人文团队的「君从何处来——跨越千年的迁徙图可视化」（东馆家谱馆展项名「客从何来」）确实做过按朝代时间轴播放的家谱迁徙可视化。三处一手出处见 sources 中的 nlcCase（国家图书馆案例页）、shlibMigration（项目团队供稿）、paper2024（CSSCI 论文）；上图官网入口见 shlibOfficial。口径提醒：项目介绍称「10 余万条」，论文称「71140 条」，两者不一致且无官方解释，引用时必须标明具体出处。",
+    "acquisitionStatus": "本机实测：Hugging Face 与 GitHub raw 的大文件下载返回 502（代理隧道不可用）；上海图书馆开放数据平台需注册 API Key；上图家谱网页端直连返回 412。以下 acquisition 清单是后续补齐数据的真实入口，不是本页已经拿到的数据。"
+  },
+
+  "sources": [
+    {
+      "id": "cbdb",
+      "title": "中国历代人物传记资料库（CBDB）",
+      "publisher": "哈佛大学费正清中国研究中心 / 中研院历史语言研究所 / 北京大学中国古代史研究中心",
+      "date": "2026-05",
+      "url": "https://cbdb.fas.harvard.edu/",
+      "tier": "一手 · 学术数据库",
+      "scope": "约 65.8 万人物，主要为 7—19 世纪；其中已知籍贯约 19 万人",
+      "quote": "The China Biographical Database is a freely accessible relational database with biographical information about approximately 657,909 individuals as of May 2026, currently mainly from the 7th through 19th centuries.",
+      "note": "官方提供规范引用格式；数据为精英样本（正史、登科录、方志、墓志中的人物及其亲属），不代表平民。",
+      "citation": "Harvard University, Academia Sinica, and Peking University, China Biographical Database (May 2026), https://cbdb.hsites.harvard.edu/."
+    },
+    {
+      "id": "cbdbSqlite",
+      "title": "CBDB SQLite 离线数据库 · 最新版索引",
+      "publisher": "cbdb-project / Hugging Face",
+      "date": "2026-11-07",
+      "url": "https://raw.githubusercontent.com/cbdb-project/cbdb_sqlite/master/latest.json",
+      "tier": "一手 · 官方发布",
+      "scope": "cbdb_20261107.sqlite3；SHA-256 df3ee4961e7def9643ed78b967c753b560249e8e3c7aa660955bf598d9834e28",
+      "quote": "https://huggingface.co/datasets/cbdb/cbdb-sqlite/resolve/main/history/cbdb_202611/cbdb_20261107.zip",
+      "note": "需按 CBDB Data Licensing Terms 使用。下载后可按「姓 + 朝代 + 籍贯」聚合，补齐唐宋 / 明清两期。"
+    },
+    {
+      "id": "cbdbApi",
+      "title": "CBDB RESTful API 使用说明",
+      "publisher": "CBDB 项目组",
+      "date": "2026",
+      "url": "https://cbdb.fas.harvard.edu/cbdbapi",
+      "tier": "一手 · 接口文档",
+      "scope": "https://cbdb.fas.harvard.edu/cbdbapi/person，支持 id / name 参数，o=json 输出",
+      "quote": "注意：id 和 name 参数必须提供其中一个。……name 支持中文名、英文名、别名，最多返回 50 个候选人。",
+      "note": "只能按具体人名查询，不支持按姓氏批量聚合，因此无法直接生成本页所需的分朝代计数。"
+    },
+    {
+      "id": "shlibJiapu",
+      "title": "中国家谱知识服务平台 / 「君从何处来」家谱迁徙图",
+      "publisher": "上海图书馆",
+      "date": "2016 起 / 2022 东馆展项",
+      "url": "https://jiapu.library.sh.cn/",
+      "tier": "一手 · 公共文化机构",
+      "scope": "家谱联合目录、高级检索、地图检索、迁徙图 /kchl/",
+      "quote": "上海图书馆从2014年开始探索以数字人文的技术和方法来建设平台，对家谱据进行深度挖掘，从中提取姓氏、人、地、时、事等内容……2016年，上海图书馆推出了首个知识服务平台——中国家谱知识服务平台（https://jiapu.library.sh.cn/）。",
+      "note": "以上为平台建设沿革的逐字摘录（国家图书馆案例页）。迁徙图页面为 https://jiapu.library.sh.cn/kchl/ ，本机直连返回 412；结构化批量获取须走开放数据平台接口。"
+    },
+    {
+      "id": "shlibMigration",
+      "title": "「君从何处来——跨越千年的迁徙图可视化」项目介绍",
+      "publisher": "云瀚联盟《智慧图书馆技术应用动态》2023 年 01 期 · 供稿：夏翠娟（上海图书馆）",
+      "date": "2023-01-17",
+      "url": "https://www.calsp.cn/2023/01/17/bulletin-202301-05/",
+      "tier": "一手 · 项目团队供稿",
+      "scope": "从约 7 万余种家谱提要中抽取始祖、始迁祖迁徙事件；按朝代时间轴自动播放的迁徙航线图",
+      "quote": "利用机器学习技术，从中国家谱知识服务平台中收录的约7万余种家谱的提要中抽取始祖和始迁祖的迁徙事件……最终得到10余万条跨越3000余年的迁徙事件……以可视化的迁徙航线图在大屏和触摸屏等多种终端上展示。",
+      "note": "「10 余万条」是本项目介绍的口径；2024 年正式论文给出的是「共抽取 71140 条迁徙数据」，两个数字不一致，未见官方解释。引用时应写明具体出处，不可混用。展项位置：上海图书馆东馆一楼大厅 10 米大屏（循环播放）与四楼家谱体验馆触摸屏；2022 年 9 月东馆开馆后成为日常展示内容。"
+    },
+    {
+      "id": "nlcCase",
+      "title": "智慧图书馆创新应用案例 · 中国家谱知识服务平台",
+      "publisher": "中国国家图书馆（案例收录） / 上海图书馆（申报单位）",
+      "date": "2024-09-24",
+      "url": "https://www.nlc.cn/web/shouye/zhongdianxiangmu/quanguozhihuitushuguantixi/chuangxinyingyonganli/20240924_2641331.shtml",
+      "tier": "一手 · 国家图书馆官网",
+      "scope": "官方对展项存在性与做法的确认；含项目资金、运行效果与 7 篇参考文献",
+      "quote": "将家谱知识服务平台中7万多种家谱，利用机器学习技术，基于事件本体做了数据提取处理，抽取始祖和始迁祖的迁徙事件，将其转换为语义化的关联数据，通过数据可视化和交互设计后，以可视化的迁徙航线图在大屏上向读者展示，给读者提供古往今来每个朝代的迁徙趋势的感官认知。",
+      "note": "这是「官方确实做过按朝代演示迁徙的可视化」最权威的确认页。同页写明：2022 年 9 月新开的上海图书馆东馆中，家谱体验馆展项包括「君从何处来」「生生不息」「探姓觅谱」。本机实测 HTTP 200。"
+    },
+    {
+      "id": "shlibOfficial",
+      "title": "上海图书馆家谱馆官网 · 「客从何来」动态迁徙展示入口",
+      "publisher": "上海图书馆",
+      "date": "官网现行页面",
+      "url": "https://www.library.sh.cn/special/GenealogyLibrary",
+      "tier": "一手 · 机构官网",
+      "scope": "官网「云端互动」栏目列出「客从何来」动态迁徙展示，点击跳转 https://jiapu.library.sh.cn/kchl/",
+      "quote": "云端互动 数字人文 · 寻根问祖 …… 中国家谱知识服务平台 点击访问 「客从何来」动态迁徙展示 点击访问",
+      "note": "从官网前端脚本核出该按钮的确切目标为 https://jiapu.library.sh.cn/kchl/ 。「客从何来」是东馆 4F 家谱馆展项名，项目正式名为「君从何处来——跨越千年的迁徙图可视化」。注意：官网家谱馆馆舍地址为静安区长乐路 746 号（合众图书馆旧址），与东馆大屏不是同一处馆舍。迁徙图页面本机直连返回 412，需浏览器正常访问。"
+    },
+    {
+      "id": "paper2024",
+      "title": "跨越千年的迁徙图——家谱迁徙数据的深度挖掘与可视化开发",
+      "publisher": "《信息资源管理学报》2024 年第 2 期 · 作者：刘倩倩、夏翠娟、单舒扬（上海图书馆）",
+      "date": "2024",
+      "url": "http://mp.weixin.qq.com/s?__biz=Mzg2MzAxNTI2OQ==&mid=2247499826&idx=1&sn=d4b033c26b9956c0d81a83d114fdcfa2",
+      "tier": "一手 · CSSCI 期刊论文（官方公众号全文荐读）",
+      "scope": "抽取 71140 条迁徙数据；仅 12% 有详细年份；跨越 16 个历史时期，最早源于周朝；明初迁徙数据 8000 余条",
+      "quote": "本研究从中国家谱知识服务平台中收录的7万余种家谱中共抽取71140条迁徙数据。……有的家谱记录了详细迁徙年份，例如「明洪武二年」，但此类数据仅占总数据的12%，绝大多数迁徙事件难以考证出具体时间……上海图书馆收录的家谱迁徙数据跨越16个历史时期，最早源于周朝。",
+      "note": "这篇论文是最可正式引用的技术出处，也解释了官方为何按朝代/时间段聚合而非逐年展示：明确年份的记录只占 12%，模糊的朝代初/中/末按规则映射到公元纪年区间；地名按古今地名对照表映射到今地名、精确到县级并加经纬度。论文明确其可视化用「线条粗细和箭头」表征事件数量与方向——与本页「只用点、不用箭头」的设计取向不同，仅作方法参照。",
+      "citation": "刘倩倩,夏翠娟,单舒扬.跨越千年的迁徙图——家谱迁徙数据的深度挖掘与可视化开发[J].信息资源管理学报,2024,14(2):95-103,161."
+    },
+    {
+      "id": "shlibOpenData",
+      "title": "上海图书馆历史人文大数据平台 · 开放数据接口",
+      "publisher": "上海图书馆",
+      "date": "2020 接口文档 / 2023 ODI 报告",
+      "url": "https://opendata.library.sh.cn/2020/download/opendata/2020/CBDB%E6%8E%A5%E5%8F%A3%E6%96%87%E6%A1%A3.pdf",
+      "tier": "一手 · 接口文档",
+      "scope": "REST / SPARQL Endpoint（http://data.library.sh.cn:8890/sparql）/ Content Negotiation，调用前需注册 API Key",
+      "quote": "http://data1.library.sh.cn/webapi/cbdb/contest/list?userName=李清照&dynasty=宋&pageNum=1&key=用户key —— 返回 count 与人物列表",
+      "note": "该接口支持 dynasty（朝代）、address（地址）条件并返回 count，是补齐分朝代计数最贴近本页需求的入口；需要用户自行注册 API Key。"
+    },
+    {
+      "id": "shlibZongmu",
+      "title": "《中国家谱总目》",
+      "publisher": "上海图书馆 编 / 上海古籍出版社",
+      "date": "2009-07（新华社 2009-07-14 首发报道；部分书目著录为 2008 年 12 月）",
+      "url": "http://news.hndaily.cn/html/2009-07/15/content_6_6.htm",
+      "tier": "一手报道 · 新华社转引",
+      "scope": "收录中国家谱 52,401 种、608 个姓氏，著录谱籍、始祖、始迁祖、迁徙路线",
+      "quote": "条目超过 2000 条的姓氏有陈、张、王、刘、李，超过 1000 条的姓氏有黄、杨、吴、周、林、徐。",
+      "note": "这是按姓的书目总量，不是按朝代、按地点的计数，因此本页不把它拆成分地散点。存世家谱以明清为主，宋以前极少。"
+    }
+  ],
+
+  "acquisition": [
+    { "step": 1, "target": "唐宋 / 明清两期的分朝代计数", "what": "下载 CBDB SQLite，按姓氏 + 朝代 + 籍贯（ADDRESSES / basic affiliation）聚合成每期每地的人物条数", "where": "https://huggingface.co/datasets/cbdb/cbdb-sqlite/resolve/main/history/cbdb_202611/cbdb_20261107.zip", "blocker": "本机代理返回 502，需在有外网的环境下载；使用时遵守 CBDB Data Licensing Terms" },
+    { "step": 2, "target": "带迁出地 / 迁入地的真实迁徙事件", "what": "注册上海图书馆开放数据平台 API Key，用 SPARQL 或 REST 按姓氏、朝代、地名查询 shl:migration 事件；先看官网在线迁徙图确认数据形态", "where": "在线展项 https://jiapu.library.sh.cn/kchl/ （上海图书馆官网家谱馆 https://www.library.sh.cn/special/GenealogyLibrary 的「客从何来」入口）；开放接口 https://data.library.sh.cn/ ，REST 样例见 shlibOpenData 来源条目；方法见 paper2024", "blocker": "需用户自行注册 API Key；本机直连上图网页端返回 412；论文指出仅 12% 事件有明确年份，必须按朝代/时间段聚合而非逐年" },
+    { "step": 3, "target": "按姓的书目底数与谱籍分布", "what": "《中国家谱总目》52,401 种、608 姓；李姓条目 >2000 种。可用于校验某个姓的文献存世量", "where": "上海图书馆家谱馆 / 中国家谱知识服务平台", "blocker": "书目总量不能直接拆成分朝代分地计数" },
+    { "step": 4, "target": "历史地名落点", "what": "用 CHGIS 历史地名与政区时间序列把古地名规范成坐标", "where": "CHGIS（哈佛 / 复旦，前 221—1911）", "blocker": "只取点坐标；不得绘制任何历史疆界或省界" },
+    { "step": 5, "target": "当代收尾", "what": "沿用 sources.json 已核实的公安部报告与各省七普结论", "where": "sources.json", "blocker": "户籍人口与常住人口口径不可混用；不得反推历史分布" }
+  ],
+
+  "surnames": {
+    "李": {
+      "status": "pilot",
+      "periods": {
+        "preqin": {
+          "status": "no-data",
+          "label": "先秦 · 得姓",
+          "places": [],
+          "blankReason": "公开渠道没有先秦逐年的姓氏记录。现存最早的家谱为宋内府写本《仙源类谱》（残页），宋以前几乎无存世家谱；CBDB 人物数据起于 7 世纪。",
+          "needed": "需接入带明确年代的先秦姓氏史料目录（金文、传世文献中的可考条目），才能标点。",
+          "sourceIds": ["shlibZongmu", "cbdb"]
+        },
+        "weijin": {
+          "status": "no-data",
+          "label": "两晋南北朝 · 衣冠南渡",
+          "places": [],
+          "blankReason": "「永嘉南渡 / 衣冠南渡」是史学共识层面的宏观框架，不是可逐地计数的姓氏记录；CBDB 覆盖起于 7 世纪，不覆盖两晋。",
+          "needed": "需接入该期正史、墓志中可考的李姓人物籍贯条目，或带年代的谱牒记录。",
+          "sourceIds": ["cbdb"]
+        },
+        "tangsong": {
+          "status": "data-gap",
+          "label": "唐宋 · 南迁入闽",
+          "places": [],
+          "blankReason": "CBDB 自 7 世纪起收录人物籍贯，是这一期最合适的数据源；但本机未能下载其 SQLite 离线库，REST API 只支持按具体人名查询、不能按姓批量聚合，因此本期 0 条可核查计数。",
+          "needed": "下载 CBDB SQLite 后按「李 + 唐 / 宋 + 籍贯」聚合；或经上图开放数据平台的 dynasty / address 条件接口取得 count。",
+          "sourceIds": ["cbdb", "cbdbSqlite", "cbdbApi", "shlibOpenData"]
+        },
+        "mingqing": {
+          "status": "catalog-only",
+          "label": "明清 · 填川渡海",
+          "places": [],
+          "catalogNote": "《中国家谱总目》中李姓家谱条目超过 2000 种，存世家谱以明清为主；上图迁徙图项目从约 7 万余种家谱提要中抽出 10 余万条跨越 3000 余年的迁徙事件。但这些是书目总量与全库事件总量，不是李姓按朝代按地点的计数，不能拆成分地散点。",
+          "blankReason": "有按姓的书目统计，但没有分朝代、分地点的李姓计数，故本期同样不画证据点。注意：留白不代表明清没有李姓。",
+          "needed": "经上图开放数据平台按姓氏 + 朝代 + 地点查询迁徙事件；或将 CBDB 明清人物按籍贯聚合。",
+          "sourceIds": ["shlibZongmu", "shlibMigration", "shlibOpenData"]
+        },
+        "modern": {
+          "status": "attested",
+          "label": "近现代 · 分布定型",
+          "note": "以下 7 个地点的存在均有可引用依据，但省级结论以省会城市作代表点，只表示「该省有可引用依据」，不代表该城市的单独统计。示意骨架中北京、西安、上海、广州、台北 5 个当代点位没有对应的官方依据，本样式不画。荆门市七普数据为市级旁证，因坐标库无对应点位未落点。",
+          "places": [
+            {
+              "place": "wuhan", "represent": "湖北省",
+              "evidence": [
+                { "sourceId": "mps2019", "factId": "l1", "scope": "省级 · 第一大姓归属", "text": "公安部 2019：李姓为湖北第一大姓（排序结论，不含人数）。" }
+              ]
+            },
+            {
+              "place": "changsha", "represent": "湖南省",
+              "evidence": [
+                { "sourceId": "mps2019", "factId": "l1", "scope": "省级 · 第一大姓归属", "text": "公安部 2019：李姓为湖南第一大姓（排序结论，不含人数）。" }
+              ]
+            },
+            {
+              "place": "chongqing", "represent": "重庆市",
+              "evidence": [
+                { "sourceId": "mps2019", "factId": "l1", "scope": "省级 · 第一大姓归属", "text": "公安部 2019：李姓为重庆第一大姓。" },
+                { "sourceId": "censusChongqing", "factId": "l5", "scope": "常住人口 · 具体人数", "text": "重庆七普：李姓 2,094,247 人，居全市第一（常住人口口径）。" }
+              ]
+            },
+            {
+              "place": "chengdu", "represent": "四川省",
+              "evidence": [
+                { "sourceId": "mps2019", "factId": "l1", "scope": "省级 · 第一大姓归属", "text": "公安部 2019：李姓为四川第一大姓（排序结论，不含人数）。" }
+              ]
+            },
+            {
+              "place": "kunming", "represent": "云南省",
+              "evidence": [
+                { "sourceId": "mps2019", "factId": "l1", "scope": "省级 · 第一大姓归属", "text": "公安部 2019：李姓为云南第一大姓。" },
+                { "sourceId": "censusYunnan", "factId": "l4", "scope": "常住人口 · 具体人数", "text": "云南七普：李姓 556.9 万人，居全省第一（常住人口口径）。" }
+              ]
+            },
+            {
+              "place": "nanchang", "represent": "江西省",
+              "evidence": [
+                { "sourceId": "censusJiangxi", "factId": "l6", "scope": "常住人口 · 具体人数", "text": "江西七普：李姓 235.55 万人，占全省 5.21%，排第二（常住人口口径）。" }
+              ]
+            },
+            {
+              "place": "zhengzhou", "represent": "河南省",
+              "evidence": [
+                { "sourceId": "mps2021", "factId": "l2", "scope": "全国 · 人口最多省份", "text": "公安部 2021：王、李、张等 22 个姓氏人口分布最多的省份是河南。" },
+                { "sourceId": "censusHenan", "factId": "l7", "scope": "常住人口 · 排序结论", "text": "河南七普：李姓为第三大姓；正文未单独公布李姓人数，只给出王张李合计 2829.32 万、均超 900 万。" }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

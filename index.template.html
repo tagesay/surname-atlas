@@ -1,0 +1,2147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>百家姓地理繁衍 · 点密度样品（10 姓）</title>
+<script type="text/javascript">
+/* 预览容器以 sandbox iframe 加载本页且缺少 allow-same-origin 时，
+   访问 window.localStorage / sessionStorage 会抛 SecurityError，
+   腾讯地图 SDK 在 TMap.Map 构造内部读取它会导致初始化中断。
+   这里在 SDK 加载之前换成内存版存储垫片，仅影响本页缓存，不写入磁盘。 */
+(function(){
+  function works(s){
+    try { s.setItem('__wb_probe__','1'); s.removeItem('__wb_probe__'); return true; }
+    catch(e){ return false; }
+  }
+  function makeStore(){
+    var mem = {};
+    return {
+      getItem: function(k){ k=String(k); return Object.prototype.hasOwnProperty.call(mem,k) ? mem[k] : null; },
+      setItem: function(k,v){ mem[String(k)] = String(v); },
+      removeItem: function(k){ delete mem[String(k)]; },
+      clear: function(){ mem = {}; },
+      key: function(i){ var ks=Object.keys(mem); return (i>=0 && i<ks.length) ? ks[i] : null; },
+      get length(){ return Object.keys(mem).length; }
+    };
+  }
+  var patched = 0;
+  ['localStorage','sessionStorage'].forEach(function(name){
+    var ok = false;
+    try { ok = works(window[name]); } catch(e){ ok = false; }
+    if (ok) return;
+    var fake = makeStore();
+    try {
+      Object.defineProperty(window, name, { configurable:true, enumerable:true, get:function(){ return fake; } });
+      if (works(window[name])) patched++;   /* 只有通过读写自检才算真正修好 */
+    } catch(e){
+      try { window[name] = fake; if (works(window[name])) patched++; } catch(e2){}
+    }
+  });
+  window.__wbStorageShimPatched = patched;
+})();
+</script>
+<script type="text/javascript">
+  window._TMapSecurityConfig = {
+    serviceHost: 'http://127.0.0.1:__WB_HTTP_PORT__/_TMapService/_wbt/__WB_TMAP_SECRET__',
+  };
+</script>
+<script src="https://map.qq.com/api/gljs?v=1.exp&libraries=visualization"></script>
+<style>
+  :root{
+    --bg:#0d131b; --panel:rgba(13,19,27,.90); --line:rgba(255,255,255,.12);
+    --ink:#f1f5f9; --sub:#9fadbd; --gold:#e8c46c; --teal:#6fd3c7; --hot:#e0644f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,"Microsoft YaHei","PingFang SC",sans-serif;}
+  #map{position:fixed;inset:0;width:100vw;height:100vh;z-index:0}
+  /* 点密度层：自绘 canvas，只画离散小圆点，不画面、不画边界、不画箭头 */
+  #dots{position:fixed;inset:0;width:100vw;height:100vh;z-index:4;pointer-events:none;display:none}
+
+  /* ---------- 左上：片头信息 ---------- */
+  #brand{position:fixed;left:26px;top:24px;z-index:5;pointer-events:none;
+    text-shadow:0 2px 14px rgba(0,0,0,.7);}
+  #brand .kicker{font-size:11px;letter-spacing:.22em;color:var(--teal);font-weight:700;}
+  #brand .big{display:flex;align-items:baseline;gap:14px;margin-top:8px;}
+  #brand .glyph{font-size:74px;line-height:1;font-weight:800;color:var(--gold);
+    text-shadow:0 3px 20px rgba(0,0,0,.75);}
+  #brand .meta{max-width:330px}
+  #brand .meta b{display:block;font-size:17px;letter-spacing:.04em}
+  #brand .meta span{display:block;font-size:12px;color:#d8e0e9;margin-top:5px;line-height:1.6}
+  #brand .oneline{font-size:12px;color:#cbd6e2;margin-top:10px;max-width:330px;line-height:1.6}
+
+  /* ---------- 左下：图例与合规标注 ---------- */
+  #legend{position:fixed;left:26px;bottom:118px;z-index:5;pointer-events:none;
+    background:rgba(10,16,23,.72);border:1px solid var(--line);border-radius:10px;
+    padding:11px 14px;backdrop-filter:blur(6px);}
+  #legend .t{font-size:10px;letter-spacing:.16em;color:var(--sub);margin-bottom:7px}
+  #legend .bar{width:176px;height:9px;border-radius:5px;
+    background:linear-gradient(90deg,#2b5c8a,#2e8b9e,#7fc08a,#e7c65b,#e8863c,#d64541);}
+  #legend .sc{display:flex;justify-content:space-between;font-size:10px;color:var(--sub);margin-top:5px}
+  #credit{position:fixed;left:26px;bottom:22px;z-index:5;max-width:640px;
+    font-size:10.5px;line-height:1.65;color:#e2e8ef;text-shadow:0 1px 8px rgba(0,0,0,.9);pointer-events:none}
+  #credit b{color:var(--teal)}
+
+  /* ---------- 右侧：控制面板 ---------- */
+  #side{position:fixed;right:0;top:0;bottom:0;width:340px;z-index:8;
+    background:var(--panel);border-left:1px solid var(--line);backdrop-filter:blur(14px);
+    display:flex;flex-direction:column;transition:transform .28s ease;}
+  #app.cinema #side{transform:translateX(100%)}
+  /* 出片模式：只留地图与字幕，隐藏品牌区、图例、右侧面板与说明，便于 16:9 / 竖屏录制。
+     用 display:none 而非 opacity:0 —— 隐藏的元素若仍占位，会与字幕重叠成脏块。 */
+  #app.export #brand,#app.export #legend,#app.export #credit,
+  #app.export #siteList,#app.export #diag,
+  #app.export #side,#app.export #tools,#app.export #exitCinema{
+    display:none !important}
+  #app.export #bottom{padding-bottom:26px}
+  #app.export #subtitle{background:rgba(8,13,19,.72);border-radius:12px;
+    padding:12px 18px;border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(8px)}
+  #app.export #subtitle .cap{font-size:15px}
+  #app.export #subtitle .ti{font-size:22px}
+  #app.export #subtitle .stat{font-size:12px}
+  /* 出片时地图铺满全屏（右侧面板已隐藏） */
+  #app.export #map{width:100vw !important}
+  #side .head{padding:20px 20px 14px;border-bottom:1px solid var(--line)}
+  #side .head h1{margin:0;font-size:15px;letter-spacing:.06em}
+  #side .head p{margin:7px 0 0;font-size:11px;color:var(--sub);line-height:1.6}
+  #side .body{flex:1;overflow-y:auto;padding:16px 20px 20px}
+  #side .sec{font-size:10px;letter-spacing:.18em;color:var(--sub);margin:4px 0 10px;font-weight:700}
+  #surnames{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:22px}
+  #surnames button{aspect-ratio:1;border:1px solid var(--line);background:rgba(255,255,255,.04);
+    color:var(--ink);border-radius:8px;font-size:21px;font-weight:700;cursor:pointer;transition:.16s}
+  #surnames button:hover{border-color:var(--gold);background:rgba(232,196,108,.12)}
+  #surnames button.on{background:var(--gold);color:#1a1408;border-color:var(--gold)}
+  #originBox{background:rgba(255,255,255,.045);border:1px solid var(--line);border-left:3px solid var(--gold);
+    border-radius:8px;padding:11px 13px;margin-bottom:22px}
+  #originBox b{font-size:16px;color:var(--gold)}
+  #originBox .m{font-size:11px;color:var(--sub);margin-top:3px}
+  #originBox p{font-size:11.5px;line-height:1.7;color:#d6dee7;margin:9px 0 0}
+  #periods{display:flex;flex-direction:column;gap:5px;margin-bottom:20px}
+  #periods button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    border:1px solid transparent;background:transparent;color:var(--sub);
+    padding:8px 10px;border-radius:7px;cursor:pointer;font-size:12px;transition:.16s}
+  #periods button:hover{background:rgba(255,255,255,.05);color:var(--ink)}
+  #periods button.on{background:rgba(232,196,108,.13);border-color:rgba(232,196,108,.4);color:var(--ink)}
+  #periods button .tag{width:22px;height:22px;flex:0 0 22px;border:1px solid var(--line);border-radius:50%;
+    display:grid;place-items:center;font-size:11px;font-weight:700}
+  #periods button.on .tag{background:var(--gold);color:#1a1408;border-color:var(--gold)}
+  #periods button .era{margin-left:auto;font-size:10px;color:var(--sub)}
+  #controls{display:flex;gap:7px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:16px}
+  #controls button{border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);
+    border-radius:7px;padding:8px 11px;font-size:11.5px;cursor:pointer;transition:.16s}
+  #controls button:hover{border-color:var(--teal)}
+  #controls button.primary{background:var(--teal);color:#07201d;border-color:var(--teal);font-weight:700;min-width:76px}
+  #controls button.act{border-color:var(--gold);color:var(--gold)}
+
+  /* ---------- 图示样式切换 ---------- */
+  #side .stylebar{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+  #side .stylebar button{border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--sub);
+    border-radius:6px;padding:6px 9px;font-size:11px;cursor:pointer;transition:.16s}
+  #side .stylebar button:hover{border-color:var(--teal);color:var(--ink)}
+  #side .stylebar button.on{background:rgba(111,211,199,.16);border-color:var(--teal);color:var(--teal);font-weight:700}
+  #styleNote{font-size:10.5px;line-height:1.65;color:var(--sub);margin-top:9px;max-width:300px}
+  #styleNote.warn{color:#f3c9bf}
+  #legend .dots{display:flex;align-items:center;gap:9px;margin-top:3px}
+  #legend .dots i{display:block;border-radius:50%;background:var(--gold);border:1px solid #a8822f}
+  #legend .dots i:nth-child(1){width:7px;height:7px}
+  #legend .dots i:nth-child(2){width:11px;height:11px}
+  #legend .dots i:nth-child(3){width:16px;height:16px}
+  #legend .dots span{font-size:10px;color:var(--sub);margin-left:3px}
+  #legend .ln{width:176px;height:2px;background:#f0c46a;margin:10px 0 0;border-radius:1px}
+  #legendDots .sw{display:flex;align-items:center;gap:7px;font-size:10px;color:#cbd6e2;margin-top:5px}
+  #legendDots .sw i{width:8px;height:8px;flex:0 0 8px;border-radius:50%;display:block}
+  #legendDots .cl{display:flex;align-items:center;gap:4px;margin-top:9px}
+  #legendDots .cl em{width:5px;height:5px;border-radius:50%;background:#ffd166;display:inline-block;opacity:.5}
+  #legendDots .cl em:nth-child(2){width:6px;height:6px;opacity:.7}
+  #legendDots .cl em:nth-child(3){width:7px;height:7px;opacity:.9}
+  #legendDots .cl em:nth-child(4){width:8px;height:8px;opacity:1}
+  #legendDots .cl span{font-size:10px;color:var(--sub);margin-left:5px}
+  #subtitle .stat{font-size:11px;color:var(--teal);margin-top:8px;letter-spacing:.02em}
+
+  /* ---------- 可考记录样式：证据点 + 无数据期说明卡 ---------- */
+  #legendEvidence .cl{display:flex;align-items:center;gap:4px;margin-top:9px}
+  #legendEvidence .cl em{width:6px;height:6px;border-radius:50%;background:#ffd166;display:inline-block}
+  #legendEvidence .cl span{font-size:10px;color:var(--sub);margin-left:5px}
+  #legendEvidence .sw{display:flex;align-items:center;gap:7px;font-size:10px;color:#cbd6e2;margin-top:6px}
+  #legendEvidence .sw b{color:#ffd166;font-weight:500}
+  #evBlank{position:fixed;left:50%;top:42%;transform:translateX(-50%);z-index:6;display:none;
+    max-width:440px;text-align:center;background:rgba(18,26,36,.90);border:1px solid var(--line);
+    border-radius:12px;padding:18px 22px;pointer-events:none}
+  #evBlank.on{display:block}
+  #evBlank h4{margin:0 0 9px;font-size:14px;color:var(--gold);font-weight:500}
+  #evBlank p{margin:0;font-size:11.5px;line-height:1.85;color:#cdd7e2}
+  #evBlank .need{margin-top:10px;font-size:10.5px;line-height:1.7;color:#9fb0c2}
+  #evBlank .tag{display:inline-block;margin-bottom:10px;font-size:10px;letter-spacing:.1em;
+    color:var(--teal);border:1px solid rgba(111,211,199,.4);border-radius:5px;padding:3px 9px}
+
+  /* ---------- 五期对比板 ---------- */
+  #compare{position:fixed;inset:0;z-index:22;background:rgba(4,8,13,.84);display:none;
+    align-items:center;justify-content:center;padding:24px}
+  #compare.on{display:flex}
+  #compare .card{max-width:1040px;max-height:88vh;overflow-y:auto;background:#121a24;
+    border:1px solid var(--line);border-radius:14px;padding:24px 28px}
+  #compare h2{margin:0 0 6px;font-size:18px}
+  #compare p{font-size:11.5px;line-height:1.75;color:#cdd7e2;margin:0 0 18px}
+  #compareGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  #compareGrid .cell{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:9px;padding:9px}
+  #compareGrid .cell.on{border-color:var(--gold);background:rgba(232,196,108,.07)}
+  #compareGrid .ct{font-size:10px;color:var(--sub);margin-bottom:6px;line-height:1.5}
+  #compareGrid svg{width:100%;height:auto;display:block;background:rgba(255,255,255,.02);border-radius:6px}
+  #compare .close{margin-top:20px;border:1px solid var(--line);background:rgba(255,255,255,.06);
+    color:var(--ink);border-radius:8px;padding:9px 18px;cursor:pointer;font-size:12px}
+  @media (max-width:900px){#compareGrid{grid-template-columns:repeat(3,1fr)}}
+
+  /* ---------- 底部：字幕与时间轴 ---------- */
+  #bottom{position:fixed;left:0;right:340px;bottom:0;z-index:6;padding:0 26px 22px;
+    transition:right .28s ease;pointer-events:none}
+  #app.cinema #bottom{right:0}
+  #timeline{display:flex;gap:5px;margin-bottom:12px;pointer-events:auto}
+  #timeline div{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.22);overflow:hidden;cursor:pointer}
+  #timeline div i{display:block;height:100%;width:0;background:var(--gold)}
+  #timeline div.done i{width:100%}
+  #timeline div.now i{animation:fill var(--dur,3600ms) linear forwards}
+  @keyframes fill{from{width:0}to{width:100%}}
+  #subtitle{max-width:760px;background:rgba(9,15,22,.84);border:1px solid var(--line);
+    border-left:3px solid var(--gold);border-radius:9px;padding:13px 17px;backdrop-filter:blur(8px)}
+  #subtitle .row{display:flex;align-items:baseline;gap:12px}
+  #subtitle .pl{font-size:10px;letter-spacing:.14em;color:var(--teal);font-weight:700;white-space:nowrap}
+  #subtitle .ti{font-size:18px;font-weight:800;letter-spacing:.04em}
+  #subtitle .cap{font-size:12.5px;line-height:1.75;color:#dbe3ec;margin-top:7px}
+
+  /* ---------- 每期聚居地点清单 ---------- */
+  #siteList{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;
+    background:rgba(255,255,255,.025)}
+  #siteList .sl-h{font-size:11.5px;color:var(--gold);letter-spacing:.04em;margin-bottom:5px}
+  #siteList .sl-n{font-size:11px;line-height:1.7;color:#9fb0c2}
+  #siteList ul{margin:0;padding:0;list-style:none;max-height:210px;overflow-y:auto}
+  #siteList li{font-size:11.5px;line-height:1.6;color:#dbe3ec;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  #siteList li:last-child{border-bottom:none}
+  #siteList .sl-r{color:var(--teal);font-size:10.5px;margin-left:6px}
+  #siteList .sl-b{display:block;color:#8fa0b2;font-size:10.5px;line-height:1.6;margin-top:2px}
+
+  /* ---------- 弹层 ---------- */
+  #modal,#sources{position:fixed;inset:0;z-index:20;background:rgba(4,8,13,.78);display:none;
+    align-items:center;justify-content:center;padding:24px}
+  #modal.on,#sources.on{display:flex}
+  #modal .card,#sources .card{max-width:640px;max-height:82vh;overflow-y:auto;background:#121a24;
+    border:1px solid var(--line);border-radius:14px;padding:26px 30px}
+  #modal h2,#sources h2{margin:0 0 6px;font-size:19px}
+  #modal h3,#sources h3{font-size:12px;letter-spacing:.12em;color:var(--teal);margin:22px 0 8px}
+  #modal p,#modal li,#sources p,#sources li{font-size:12.5px;line-height:1.85;color:#cdd7e2}
+  #modal ul,#sources ul{padding-left:19px;margin:0}
+  #modal .warn,#sources .warn{background:rgba(224,100,79,.10);border:1px solid rgba(224,100,79,.35);
+    border-radius:8px;padding:11px 14px;color:#f3c9bf;font-size:12px;line-height:1.75}
+  #modal .close,#sources .close{margin-top:22px;border:1px solid var(--line);background:rgba(255,255,255,.06);
+    color:var(--ink);border-radius:8px;padding:9px 18px;cursor:pointer;font-size:12px}
+
+  /* 权威数据核查弹层：纯表格与文字，不画地图、不做分省设色 */
+  #sources .card{max-width:760px}
+  #sources h4{font-size:12px;letter-spacing:.08em;color:#ffd166;margin:18px 0 8px}
+  #sources .fact{border:1px solid var(--line);border-radius:9px;padding:10px 13px;margin-bottom:8px;
+    background:rgba(255,255,255,.025)}
+  #sources .fact .txt{font-size:12.5px;line-height:1.75;color:#e6edf5}
+  #sources .fact .meta{font-size:10.5px;line-height:1.7;color:#9fb0c2;margin-top:5px}
+  #sources .fact .meta b{color:var(--teal);font-weight:600}
+  #sources .src{font-size:11px;line-height:1.8;color:#aebccc;border-bottom:1px solid rgba(255,255,255,.06);
+    padding:7px 0}
+  #sources .src a{color:var(--teal);text-decoration:none;word-break:break-all}
+  #sources .src a:hover{text-decoration:underline}
+  #sources .tag{display:inline-block;font-size:10px;border:1px solid var(--line);border-radius:5px;
+    padding:1px 6px;color:var(--sub);margin-right:6px}
+  #sources table{width:100%;border-collapse:collapse;font-size:11.5px;color:#dbe3ec;margin-top:6px}
+  #sources th,#sources td{border-bottom:1px solid rgba(255,255,255,.08);padding:6px 8px;text-align:left;vertical-align:top}
+  #sources th{color:var(--teal);font-weight:600;font-size:11px}
+
+  #mapFail{position:fixed;left:26px;top:112px;z-index:9;display:none;max-width:420px;
+    background:rgba(13,19,27,.94);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;text-align:left}
+  #mapFail.on{display:block}
+  #mapFail div{max-width:420px}
+  #mapFail h2{font-size:16px;color:var(--gold)}
+  #mapFail p{font-size:12px;line-height:1.75;color:#cdd7e2}
+  #diag{position:fixed;left:26px;top:112px;z-index:10;display:none;max-width:460px;
+    background:#2a1210;border:1px solid #ff9c85;border-left:4px solid #ff8a6b;
+    border-radius:9px;padding:11px 15px;font-size:12px;line-height:1.75;
+    color:#fff1e9;box-shadow:0 4px 18px rgba(0,0,0,.35)}
+  #diag.on{display:block}
+  #diag.lower{top:288px}
+  #btnExitCinema{position:fixed;right:20px;top:20px;z-index:12;display:none;
+    border:1px solid var(--gold);background:rgba(13,19,27,.88);color:var(--gold);
+    border-radius:8px;padding:9px 16px;font-size:12px;cursor:pointer}
+  #btnExitCinema.on{display:block}
+  @media (max-width:900px){#side{width:290px}#bottom{right:290px}#brand .glyph{font-size:56px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+  <canvas id="dots"></canvas>
+  <div id="evBlank">
+    <span class="tag" id="evBlankTag">无可引用记录</span>
+    <h4 id="evBlankTitle"></h4>
+    <p id="evBlankReason"></p>
+    <div class="need" id="evBlankNeed"></div>
+  </div>
+  <div id="diag"></div>
+
+  <div id="brand">
+    <div class="kicker">百家姓 · 点密度繁衍 / SAMPLE 10</div>
+    <div class="big"><div class="glyph" id="glyph">李</div>
+      <div class="meta"><b id="originName">陇西郡 · 赵郡</b><span id="originModern">甘肃陇西 / 河北赵县一带</span></div>
+    </div>
+    <div class="oneline" id="oneline"></div>
+  </div>
+
+  <div id="legend">
+    <div id="legendHeat">
+      <div class="t">姓氏密度（示意权重）</div>
+      <div class="bar"></div>
+      <div class="sc"><span>稀疏</span><span>密集</span></div>
+    </div>
+    <div id="legendNodes" style="display:none">
+      <div class="t">圆点大小 = 示意权重</div>
+      <div class="dots"><i></i><i></i><i></i><span>小 → 大</span></div>
+      <div class="ln"></div>
+      <div class="sc"><span>金色：老根 / 已有</span><span>青色：本期新增</span></div>
+    </div>
+    <div id="legendDots" style="display:none">
+      <div class="t">点密度 = 示意繁衍规模</div>
+      <div class="cl"><em></em><em></em><em></em><em></em><span>点越多 = 越密</span></div>
+      <div class="sw" style="margin-top:8px">统一单色，只看点的数量与疏密</div>
+    </div>
+    <div id="legendSpread" style="display:none">
+      <div class="t">点簇 = 该地的姓氏聚居点</div>
+      <div class="cl"><em></em><em></em><em></em><em></em><span>点越多 = 聚居越久 / 证据越强</span></div>
+      <div class="sw"><b>点数量 ≠ 人口数</b>（= 聚居证据等级 + 持续朝代数）</div>
+      <div class="sw"><i style="background:rgba(190,215,240,.5)"></i>淡色底层 = 全国有人居住的行政单元</div>
+      <div class="sw"><i style="background:#ffd166;opacity:.6;width:5px;height:5px"></i>小点 = 省内铺开点（依官方「该省有分布」结论展开到地级市，非逐市统计）</div>
+      <div class="sw"><i style="background:#ffd166;width:9px;height:9px"></i>大点簇 = 有具体史料记载的聚居地</div>
+      <div id="legendOverview" style="display:none;margin-top:10px;border-top:1px solid var(--line);padding-top:9px">
+        <div class="t">颜色 = 姓氏</div>
+        <div id="overviewLegend" style="display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px"></div>
+      </div>
+    </div>
+    <div id="legendEvidence" style="display:none">
+      <div class="t">可考记录 · 有出处才标点</div>
+      <div class="cl"><em></em><em></em><em></em><span>一点 = 一条证据</span></div>
+      <div class="sw"><b>点数量 ≠ 人口数</b></div>
+      <div class="sw">留白 = 无可引用记录，不是人少</div>
+    </div>
+  </div>
+
+  <div id="credit">
+    <b>底图：腾讯地图（合规标准底图，GCJ-02）</b> · 本页不绘制任何国界、省界或历史疆域轮廓 ·
+  专题层以离散点密度表达「某地何时有了此姓、此后繁衍或凋零」，不画迁徙箭头，不作分省设色；连续密度面与弧线仅作历史对照 · 境外扩散以文字说明，不画跨境线条<br>
+    香港特别行政区、澳门特别行政区专题资料暂缺。默认「迁徙扩散」视图只画有史料依据的聚居地点，点数表示证据等级而非人口数；淡色底层为全国有人居住的行政单元，多个姓氏可共存于同一地点。当代分布的可引用依据与数据补齐指引见「权威数据核查」，正式发布前须按规范复核并标注审图号。
+  </div>
+
+  <aside id="side">
+    <div class="head">
+      <h1>选一个姓，看它怎么长遍中国</h1>
+      <p>样品覆盖 10 个大姓 · 5 个历史断面 · 点密度按期生长（同一姓同一期结果完全一致，便于逐帧导出）</p>
+      <div class="sec" style="margin:14px 0 8px">图示样式 · 点击对比（或按 1–7）</div>
+      <div id="stylebar" class="stylebar"></div>
+      <div id="styleNote"></div>
+    </div>
+    <div class="body">
+      <div class="sec">01 / 选择姓氏</div>
+      <div id="surnames"></div>
+
+      <div class="sec">02 / 得姓与郡望</div>
+      <div id="originBox"></div>
+
+      <div class="sec">03 / 历史断面</div>
+      <div id="periods"></div>
+      <div id="siteList"></div>
+
+      <div class="sec">04 / 播放与出片</div>
+      <div id="controls">
+        <button class="primary" id="btnPlay">▶ 播放</button>
+        <button id="btnPrev">上一期</button>
+        <button id="btnNext">下一期</button>
+        <button id="btnSpeed">速度 1×</button>
+        <button class="act" id="btnCinema">全屏演示</button>
+        <button class="act" id="btnExportMode">出片模式 关</button>
+        <button class="act" id="btnAnim">生长动画 开</button>
+        <button class="act" id="btnBase">基底层 开</button>
+        <button id="btnExport">导出本姓数据</button>
+        <button id="btnFrames">导出逐帧数据</button>
+        <button id="btnCompare">五期对比板</button>
+        <button id="btnSources">权威数据核查</button>
+        <button id="btnInfo">合规与数据说明</button>
+      </div>
+    </div>
+  </aside>
+
+  <div id="bottom">
+    <div id="timeline"></div>
+    <div id="subtitle">
+      <div class="row"><span class="pl" id="pl"></span><span class="ti" id="ti"></span></div>
+      <div class="cap" id="cap"></div>
+      <div class="stat" id="stat"></div>
+    </div>
+  </div>
+  <button id="btnExitCinema" type="button">退出演示</button>
+</div>
+
+<div id="modal">
+  <div class="card">
+    <h2>合规与数据说明</h2>
+    <p>这个样品刻意把「地图」和「数据」分开处理。下面是设计依据与能力边界，请在正式发布前逐条确认。</p>
+
+    <h3>一、为什么不用历史地图</h3>
+    <div class="warn">「用历史地图规避合规」不成立，反而加重义务。《地图管理条例》第十五条确立地图审核制度；按第十七、十八条与《地图审核管理规定》，<b>历史地图</b>与全国地图、港澳台地图、世界地图并列，属于需送<b>自然资源部</b>审核的类别。《公开地图内容表示规范》（自然资规〔2023〕2 号，2023-02-06 印发）第三条另规定：中国历史疆界须依据有关历史资料、按照实际历史疆界绘制。自绘朝代疆域轮廓 = 无审图号的自编地图，是短视频审核中最容易被判为「问题地图」的形态。</div>
+
+    <h3>二、本样品采用的降险路径</h3>
+    <ul>
+      <li>底图使用白名单内的合规服务商现行标准底图（腾讯地图），由服务商承担资质与审图；本页<b>不改动底图、不绘制任何边界线</b>。</li>
+      <li>专题表达以<b>离散点密度</b>为主：某地在哪一期首次出现就标点，此后点数随示意权重增减，「繁衍则变密、凋零则变疏」。<b>不用箭头表示迁徙</b>——新地点自己冒出点，就是迁徙；点数逐期变多，就是扩散。<b>不做分省填色</b>，避免触发专题地图的省级表示义务。</li>
+      <li>点密度演化由各期 weight 跨期插值得到：<b>首现期只落一半的点</b>（刚到一地），下一期按 1.38 系数继续<b>扩散变密</b>，再往后按 0.62 系数逐期衰减，构成「落地 → 繁衍扩散 → 稳定 → 凋零」的完整生命周期，而非瞬间跳变。这是<b>视觉示意，不是人口统计或谱牒复原</b>。点严格落在地名坐标 0.7° 以内的小半径中，不形成连续色斑，不覆盖港澳「资料暂缺」区。</li>
+      <li>页面保留连续密度面与弧线样式作历史对照。<b>连续密度面半径较大，色斑可能覆盖港澳「资料暂缺」区</b>，正式发布不建议使用。「五期对比板」为抽象示意图，不含底图与任何边界，不是地图。</li>
+      <li>地理范围限定中国境内；下南洋等境外扩散只写进字幕，不画跨境箭头，避免触发世界地图国界画法要求。</li>
+      <li>视频属于「附着地图图形产品」/登载展示，同样受该规范约束。若改用自然资源部标准地图图片（bzdt.ch.mnr.gov.cn），直接使用需标注审图号且无需送审；但<b>叠加点线、文字，或放大缩小裁切，即属编辑改动，公开使用前需送审</b>。</li>
+    </ul>
+
+    <h3>三、数据可信度（重要）</h3>
+    <ul>
+      <li><b>较有共识</b>：各姓郡望（陇西李、太原/琅琊王、清河张、彭城刘、颍川陈、弘农杨、天水赵、江夏黄、延陵吴、汝南周），以及三次南迁浪潮、江西填湖广、湖广填四川、洪洞移民、渡海赴台等宏观事件。</li>
+      <li><b>示意假设</b>：每个断面的点位与 weight 是为可视化做的插值，<b>不是逐年人口统计数据</b>；跨期衰减、点数换算（每点约 5 个示意权重单位）、扩散半径均为演示参数，不含任何史料依据。坐标为现代城市中心近似位置，不作精确考据。大姓普遍多源合流，谱系含后世建构，不宜当作单一血缘路线讲。</li>
+      <li><b>权威数据只覆盖当代</b>：公安部《全国姓名报告》（2018 / 2019 / 2020 / 2021）与部分省市七普姓氏统计，已逐条整理进「权威数据核查」弹层，含发布机构、年份、口径与可打开的链接。<b>公开渠道没有 31 个省（区、市）各姓完整人口数</b>，公安部只公布「各省第一大姓」归属与「人口分布最多的省份」，因此无法绘制真实的分省密度图；本页也不做分省设色。公安部为户籍人口口径（不含港澳台地区），七普为常住人口口径，两者不可混用。</li>
+      <li><b>第 5 期点位</b>：新增点位依据公安部报告点名的省份选取，但<b>点的数量仍是示意权重，不表示人口数</b>，不可用于省际比较。前 4 期全部仍为示意。</li>
+      <li><b>「可考记录」样式（第 6 项）</b>：使用独立的 <code>evidence.json</code> 证据层，逐姓接入。一点的份量是一条带出处的证据，<b>不使用任何演示系数与跨期插值</b>；没有记录的朝代整期留白并写明原因。目前仅李姓接入，且只有当代期有可核查证据——前 4 期如实留白。留白表示「无可引用记录」，<b>不表示当时没有此姓或人少</b>。省级结论以省会城市作代表点，不得误读为该市单独统计。</li>
+      <li>规范第十六条要求专题信息以主管部门依法公布或授权使用的信息为准。正式成片前，建议以权威姓氏人口统计与谱牒研究复核，并在片中标注「示意」。</li>
+    </ul>
+
+    <h3>四、当前样品的能力边界</h3>
+    <ul>
+      <li>这是<b>交互式网页预览器</b>，不是 MP4。静态视频无法响应观众选择，所以「选姓即播放」在本样品中以 H5 形式实现。</li>
+      <li>后续出片路径：本页同一份 JSON 数据 → 无头浏览器逐帧截图 → ffmpeg 合成 MP4，可按姓氏批量生成。离线渲染时在线底图代理不可用，需换用本地标准地图图片（带审图号）作静态底图，这一步尚未实现。</li>
+      <li>地图送审、审图号标注、平台内容合规确认，须由发布方自行完成。</li>
+    </ul>
+    <button class="close" id="btnClose">知道了</button>
+  </div>
+</div>
+
+<div id="compare">
+  <div class="card">
+    <h2>五期对比板 · <span id="compareName"></span></h2>
+    <p>抽象示意图：每格只用<b>点的多少与疏密</b>表达该期各地的繁衍状态，<b>不含底图、边界、疆域轮廓或连线，不是地图</b>。五张小图共用同一套固定坐标范围，便于横向比较。<br><b>注意：对比板始终展示 surnames.json 的示意骨架</b>，不随「可考记录」样式切换，不能当作可引用记录解读。</p>
+    <div id="compareGrid"></div>
+    <button class="close" id="btnCompareClose">关闭</button>
+  </div>
+</div>
+
+<div id="sources">
+  <div class="card">
+    <h2>权威数据核查 · <span id="sourcesName"></span></h2>
+    <p>这里只放<b>能查到出处</b>的当代姓氏分布事实，逐条标明发布机构、年份、口径与链接。5 期历史断面没有任何权威逐年人口数据，仍为可视化示意，不在此列。<b>第五节</b>为「可考记录」证据层的打样结果与数据补齐指引。</p>
+    <div id="sourcesBody"></div>
+    <button class="close" id="btnSourcesClose">关闭</button>
+  </div>
+</div>
+
+<div id="mapFail"><div>
+  <h2>合规底图未加载</h2>
+  <p>请检查网络后刷新页面。本页<b>不提供自绘中国轮廓的兜底地图</b>——自行绘制疆域不符合《公开地图内容表示规范》，因此不做降级替代。</p>
+  <p>姓氏列表、历史断面、字幕与点密度示意仍可查看，仅缺少合规底图；此时画面不可用于出片。</p>
+</div></div>
+
+<script id="atlas-data" type="application/json">__ATLAS_DATA__</script>
+<script id="atlas-sources" type="application/json">__ATLAS_SOURCES__</script>
+<script id="atlas-evidence" type="application/json">__ATLAS_EVIDENCE__</script>
+<script id="atlas-places" type="application/json">__ATLAS_PLACES__</script>
+<script id="atlas-genealogy" type="application/json">__ATLAS_GENEALOGY__</script>
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var DATA = null, periods = [], PERIOD_MS = 3600;
+
+  /* 七种图示样式：同一份坐标底图，只换「画什么」。
+     bloom   —— 示意骨架（示意数据，历史对照用）
+     spread  —— 迁徙扩散（史料核实的聚居时间线，默认主视图）
+     heat / heatFine —— 连续密度面（历史对照）
+     nodes / routes  —— 节点弧线 / 路线生长（历史对照）
+     evidence —— 逐条可考记录（李姓打样） */
+  var STYLE_KEYS = ['spread','bloom','heat','heatFine','nodes','routes','evidence'];
+  var STYLES = {
+    spread:   { label:'1 迁徙扩散', note:'默认主视图：史料核实的聚居时间线。某地首次有此姓即出现点簇；该地持续聚居则点逐个变密（繁衍扩散），不再出现则淡出。只用点，不用箭头。点数量 = 聚居证据等级与持续朝代数，不是人口数。' },
+    bloom:    { label:'2 示意骨架', note:'历史对照：示意数据 + 插值权重，用来对比真实史料层与示意层的差别，不可作为史料引用。' },
+    heat:     { label:'3 密度面',   note:'历史对照：原始连续密度面，半径约 200 km，色斑会盖住港澳「资料暂缺」区，正式发布慎用。', radius:48, opacity:0.88, fine:false },
+    heatFine: { label:'4 细密度面', note:'历史对照：收紧半径与散点后的连续面，糊得少一些，但语义误导与溢出问题仍在。', radius:16, opacity:0.70, fine:true },
+    nodes:    { label:'5 节点弧线', note:'历史对照：分级圆点 + 贝塞尔弧线与方向箭头，点位精确、不溢出。' },
+    routes:   { label:'6 路线生长', note:'历史对照：只画当期迁徙线与端点，逐期变化最清楚。' },
+    evidence: { label:'7 可考记录', note:'逐条证据视图（李姓打样）：只画有出处、可核查的记录；没有记录的朝代整期留白并说明原因。点数量 = 证据条数，不是人口数。' }
+  };
+  /* 十姓叠加总览是独立入口（不占数字键），它同时画出所有姓，演示混杂关系 */
+  var OVERVIEW = { label:'十姓叠加总览', note:'所有已接入的姓同时画在共享的基底层上：每个姓一种颜色，落在同一批地点里，彼此不排斥。这就是「百家姓混杂、铺满全国有人区」的直接画面。' };
+  var state = { sIdx:0, pIdx:0, playing:false, speed:1, timer:null, style:'spread', anim:true };
+  try {
+    var qp = new URLSearchParams(location.search);
+    if (qp.get('style') && STYLES[qp.get('style')]) state.style = qp.get('style');  /* ?style=heat 可直接看对照 */
+    if (qp.get('anim') === '0') state.anim = false;                                 /* ?anim=0 关闭生长动画，逐帧截图用终态 */
+    if (qp.get('base') === '0') baseLayerOn = false;                                /* ?base=0 关闭基底层 */
+  } catch(e){}
+  var map = null, heat = null, routeLayer = null, markerLayer = null;
+  var projBox = null;
+
+  /* 点密度演化的状态必须在 render() 首次调用之前初始化（render 在脚本前段就会跑） */
+  var DECAY = 0.62, GROW = 1.38, DOT_K = 5, DOT_MAX = 22;
+  var DOT_INK = '#ffd166';   /* 全部点统一一种醒目色；状态只由「点的数量」表达，不靠颜色或透明度区分 */
+  var colonyCache = {};
+  var dotCanvas = null, dotCtx = null, dotW = 0, dotH = 0, dotDPR = 1;
+  var dotAnim = { raf:0, dur:1300, key:'', from:null, to:null };
+  var dotShown = null;
+  var spreadShown = null;
+
+  /* ---------- 基底层：全国有人居住的地理单元（与姓无关） ----------
+     3102 个行政区中心点构成「有人区」的骨架。
+     姓氏层叠加在它之上，因此多个姓可以共存于同一批地点，互不排斥。 */
+  var PLACES = {};          /* adcode -> {name,path,lat,lng,level} */
+  var GEN = { meta:{}, surnames:{} };   /* 史料核实的聚居时间线 */
+  var SPREAD_PERIODS = ['pre_qin','wei_jin','tang_song','ming_qing','modern'];
+  var baseLayerOn = true;   /* 基底层开关 */
+
+  /* 基底层点的视觉参数：极淡，只作为「这里有人居住」的底纹 */
+  var BASE_INK = 'rgba(190,215,240,.30)';
+  var BASE_R = 1.1;
+
+  /* ---------- 可见诊断：任何脚本异常都写在页面上，不再静默留白 ---------- */
+  function diag(msg){
+    var d = $('diag');
+    if(!d) return;
+    d.textContent = '渲染诊断：' + msg;
+    d.classList.add('on');
+  }
+  window.addEventListener('error', function(e){
+    var d = $('diag');
+    /* SDK 内部异步噪声不覆盖已有的人工诊断 */
+    if(e && e.message && d && !d.classList.contains('on')){
+      diag('脚本异常 ' + e.message + '（第 ' + (e.lineno || '?') + ' 行）');
+    }
+  });
+
+  try {
+    DATA = JSON.parse($('atlas-data').textContent);
+    periods = DATA.meta.periods;
+  } catch(e){
+    diag('内嵌数据解析失败：' + e.message);
+    return;
+  }
+
+  /* 可引用来源清单与示意骨架分文件存放；缺失时降级为空，不影响主视图 */
+  var SRC = { meta:{}, sources:[], facts:[], limits:[], provinceTopSurname2019:{bySurname:{},notAnalyzed:[]} };
+  try {
+    var parsed = JSON.parse($('atlas-sources').textContent);
+    if (parsed && typeof parsed === 'object') SRC = parsed;
+  } catch(e){ /* 来源清单非必需 */ }
+
+  /* 可考记录证据层：逐姓接入。没有接入的姓不套用示意骨架冒充证据 */
+  var EVID = { meta:{}, sources:[], acquisition:[], surnames:{} };
+  try {
+    var evParsed = JSON.parse($('atlas-evidence').textContent);
+    if (evParsed && typeof evParsed === 'object') EVID = evParsed;
+  } catch(e){ /* 证据层非必需 */ }
+  var evHit = [];   /* 本期实际画出的证据点（含 sourceId），供核查与验证 */
+
+  /* 基底层：全国行政单元中心点（与姓无关，构成「有人区」骨架） */
+  try {
+    var plParsed = JSON.parse($('atlas-places').textContent);
+    if (plParsed && typeof plParsed === 'object') PLACES = plParsed;
+  } catch(e){ /* 基底层非必需 */ }
+
+  /* 史料核实的姓氏聚居时间线（迁徙扩散主视图的数据源） */
+  try {
+    var genParsed = JSON.parse($('atlas-genealogy').textContent);
+    if (genParsed && typeof genParsed === 'object') GEN = genParsed;
+  } catch(e){ /* 史料层非必需 */ }
+  var genHit = [];  /* 本期实际画出的聚居点（含出处），供核查 */
+
+  function hasGenealogy(ch){
+    return !!(GEN.surnames && GEN.surnames[ch]);
+  }
+  function genealogyPeriod(ch, pid){
+    if (!hasGenealogy(ch)) return null;
+    return (GEN.surnames[ch].periods || {})[pid] || null;
+  }
+  /* 当前期对应的史料层 period 键：按序号对齐五个朝代 */
+  function spreadPeriodId(idx){
+    return SPREAD_PERIODS[Math.min(idx, SPREAD_PERIODS.length-1)];
+  }
+
+  function hasEvidence(ch){
+    return !!(EVID.surnames && EVID.surnames[ch] && EVID.surnames[ch].periods);
+  }
+  function evidencePeriod(ch, idx){
+    if (!hasEvidence(ch)) return null;
+    var id = (periods[idx] || {}).id;
+    return EVID.surnames[ch].periods[id] || null;
+  }
+
+  /* ---------- 界面与底图彻底解耦：先建界面，再试地图 ---------- */
+  initDotCanvas();
+  buildStyleButtons();
+  buildSurnameButtons();
+  buildPeriodButtons();
+  bindControls();
+  render();
+
+  /* ---------- 调试与出片接口：暴露只读视图，便于自动化截图与逐帧导出时校验状态 ---------- */
+  function exposeAtlas(){
+    window.__atlas = {
+      state: state,
+      get places(){ return PLACES; },
+      get genealogy(){ return GEN; },
+      get evidence(){ return EVID; },
+      get sources(){ return SRC; },
+      spreadState: spreadState,
+      densitySummary: densitySummary,
+      hit: function(){ return genHit; },
+      render: render,
+      renderMap: renderMap,
+      drawOverview: drawOverview,
+      setStyle: function(k){ if (STYLES[k] || k === 'overview') { state.style = k; render(); } },
+      setSurname: function(i){ if (i>=0 && i<DATA.surnames.length){ state.sIdx=i; state.pIdx=0; render(); } },
+      setPeriod: function(i){ if (i>=0 && i<periods.length){ state.pIdx=i; render(); } },
+      setAnim: function(on){ state.anim = !!on; },
+      setBase: function(on){ baseLayerOn = !!on; redrawDots(); },
+      periods: function(){ return periods; },
+      surnames: function(){ return DATA.surnames; }
+    };
+  }
+
+  if (typeof TMap === 'undefined') {
+    $('mapFail').classList.add('on');
+    $('diag').classList.add('lower');   /* 与失败提示卡错开，避免叠在一起 */
+    diag('图层状态：底图未就绪 / 热力未就绪 / 点密度层 ' +
+      (dotCtx ? '可用（固定投影，无底图）' : '不可用') +
+      '。无底图时点密度仍可见，但不构成合规地图，不可用于出片。');
+    exposeAtlas();
+    return;
+  }
+
+  /* ---------- 合规底图：默认矢量底图，不传 mapStyleId，不画任何边界 ---------- */
+  var mapErr = '';
+  try {
+    map = new TMap.Map('map', {
+      zoom: 4.7,
+      center: new TMap.LatLng(34.6, 106.5)
+    });
+  } catch(e){
+    map = null;
+    mapErr = e.message;
+  }
+
+  /* ---------- 热力层：附加库可能加载失败，单独保护，不阻断界面 ---------- */
+  try {
+    if (!map) {
+      /* 底图实例未拿到，热力层无法挂载；由末尾的图层状态汇总统一说明 */
+    } else if (!TMap.visualization || !TMap.visualization.Heat) {
+      /* 热力库缺失不影响其余三种样式；切到密度面时由 renderMap 明确提示 */
+    } else {
+      heat = new TMap.visualization.Heat({
+        radius: 48,
+        gradientColor: {
+          0:   '#2b5c8a',
+          0.22:'#2e8b9e',
+          0.45:'#7fc08a',
+          0.65:'#e7c65b',
+          0.83:'#e8863c',
+          1:   '#d64541'
+        }
+      });
+      /* addTo 的返回值不一定是图层实例，分开调用以免把 heat 覆盖掉 */
+      if (typeof heat.addTo === 'function') heat.addTo(map);
+      else if (typeof heat.setMap === 'function') heat.setMap(map);
+      /* 显式调用文档方法，避免构造参数被不同版本忽略 */
+      try { heat.setOpacity(0.88); heat.setRadius(48); heat.setMin(6); heat.setMax(100); } catch(e){}
+    }
+  } catch(e){
+    heat = null;
+    diag('热力层初始化失败：' + e.message + '；界面与姓氏切换不受影响');
+  }
+  bindMapDotEvents();
+  render();  /* 底图就绪后再刷一次，让点密度对齐真实投影 */
+
+  /* 图层状态自检：点密度层只依赖 canvas，底图失败时仍可显示（但不构成合规地图） */
+  if (!map) {
+    diag('图层状态：底图未就绪 / 热力 ' + (heat ? '就绪' : '未就绪') +
+      ' / 点密度层 ' + (dotCtx ? '可用（固定投影，无底图）' : '不可用') +
+      ' / 存储垫片 ' + (window.__wbStorageShimPatched || 0) + ' 项' +
+      (mapErr ? '。底图异常：' + mapErr : '') +
+      '。姓氏、字幕、点密度与五期对比板仍可查看，但无底图时不可用于出片。');
+  }
+
+  /* 图层清理做特性检测，兼容不同 GL JS 版本 */
+  function dropLayer(l){
+    if(!l) return;
+    try { if(typeof l.setMap === 'function') l.setMap(null); } catch(e){}
+    try { if(typeof l.destroy === 'function') l.destroy(); } catch(e){}
+  }
+
+  /* ---------- 确定性伪随机：保证同一姓同一期热力逐帧完全一致 ---------- */
+  function hashStr(s){ var h=2166136261; for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
+  function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  function gauss(rnd){ return (rnd()+rnd()+rnd()-1.5)*2; }
+
+  function heatPoints(surname, frame, fine){
+    var rnd = mulberry32(hashStr(surname.id + '|' + frame.period + (fine ? '|fine' : '')));
+    var out = [];
+    frame.points.forEach(function(p){
+      var place = DATA.places[p.place];
+      if(!place) return;
+      var n = Math.round(p.weight/4) + 3;
+      var spread = 0.42 + (100 - p.weight)/200;
+      if (fine) { n = Math.max(2, Math.round(n/2)); spread = spread/2; }
+      for(var i=0;i<n;i++){
+        out.push({
+          lat: place.lat + gauss(rnd)*spread,
+          lng: place.lng + gauss(rnd)*spread*1.18,
+          count: Math.max(6, Math.round(p.weight*(0.4+rnd()*0.6)))
+        });
+      }
+    });
+    return out;
+  }
+
+  /* ---------- 标记图标：内联 SVG，不引用外部示例图片 ---------- */
+  function svgRing(){
+    return 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34">' +
+      '<circle cx="17" cy="17" r="14" fill="rgba(232,196,108,.18)" stroke="#e8c46c" stroke-width="2.5"/>' +
+      '<circle cx="17" cy="17" r="5" fill="#e8c46c"/>' +
+      '<circle cx="17" cy="17" r="9" fill="none" stroke="#e8c46c" stroke-width="1" opacity=".55"/>' +
+      '</svg>');
+  }
+  function svgDot(){
+    return 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14">' +
+      '<circle cx="7" cy="7" r="5.5" fill="#f3cd78" stroke="#4a3410" stroke-width="1.5"/></svg>');
+  }
+
+  /* 分级圆点 / 方向箭头：全部内联 SVG，不引用外部图片 */
+  function svgNode(r, fill, stroke){
+    var c=r+3, d=c*2;
+    return 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="'+d+'" height="'+d+'">' +
+      '<circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="'+fill+'" fill-opacity=".85" stroke="'+stroke+'" stroke-width="1.8"/>' +
+      '<circle cx="'+c+'" cy="'+c+'" r="'+Math.max(2,Math.round(r*0.3))+'" fill="'+stroke+'"/>' +
+      '</svg>');
+  }
+  function svgArrow(ang, color){
+    return 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">' +
+      '<g transform="rotate('+ang.toFixed(1)+' 8 8)">' +
+      '<path d="M2 8 L12 8 M8 4 L12 8 L8 12" fill="none" stroke="'+color+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</g></svg>');
+  }
+  /* 二次贝塞尔弧线：控制点沿垂直方向偏移，避免多条迁徙线叠成一条直线 */
+  function arcPoints(fromId, toId, bend){
+    var a=DATA.places[fromId], b=DATA.places[toId];
+    var dx=b.lng-a.lng, dy=b.lat-a.lat;
+    var len=Math.sqrt(dx*dx+dy*dy) || 1;
+    var cx=(a.lng+b.lng)/2 - dy/len*len*bend;
+    var cy=(a.lat+b.lat)/2 + dx/len*len*bend;
+    var pts=[];
+    for(var i=0;i<=10;i++){
+      var t=i/10, u=1-t;
+      pts.push({ lat:u*u*a.lat+2*u*t*cy+t*t*b.lat, lng:u*u*a.lng+2*u*t*cx+t*t*b.lng });
+    }
+    return pts;
+  }
+
+  /* ================================================================
+     点密度演化模型：迁徙与扩散全部只用「点」表达
+     - 一个地名首次出现即成为「聚落」，进入跨期演化表；完整生命周期为
+       「落地（少量点）→ 繁衍扩散（点变密）→ 稳定 → 凋零（点逐个淡去）」；
+     - 首现期只落一半的点；下一期若无数据，按 GROW 继续扩散；再往后按 DECAY 逐期衰减，
+       表现「逐渐凋零」而不是瞬间消失；任何一期只要数据里明确给了 weight，就以数据为准；
+     - 点数 n = 示意权重 / DOT_K（浮点），第 i 个点的可见度 clamp(n-i,0,1)，
+       于是点数增加时点「由内向外逐个冒出」，减少时逐个淡去 —— 即扩散 / 凋零；
+     - 候选点用黄金角螺旋确定性生成，同一姓同一地固定不变，逐帧导出可复现。
+     ================================================================ */
+  function buildColonies(s){
+    if (colonyCache[s.id]) return colonyCache[s.id];
+    var present = {}, order = {};
+    s.timeline.forEach(function(f,i){
+      (f.points||[]).forEach(function(p){
+        if(!DATA.places[p.place]) return;
+        if(!present[p.place]) present[p.place] = {};
+        present[p.place][i] = p.weight;
+        if(order[p.place] === undefined) order[p.place] = i;
+      });
+    });
+    var eff = {};
+    Object.keys(present).forEach(function(k){
+      var arr = [], prev = 0, birth = order[k];
+      for (var t=0; t<periods.length; t++){
+        var v = present[k][t];
+        if (v !== undefined){
+          /* 首现只落一半点：刚到此地；此后若数据给了权重，一律以数据为准 */
+          var val = (t === birth) ? v*0.5 : v;
+          arr.push({ v:val, mode:'data' }); prev = val;
+        } else if (t === birth+1 && prev > 0){
+          /* 落地后的下一期：繁衍扩散，点由内向外继续变密 */
+          prev = prev * GROW; arr.push({ v:prev, mode:'grow' });
+        } else if (t > birth && prev > 0){
+          /* 之后逐渐凋零，而不是瞬间归零 */
+          prev = prev * DECAY; arr.push({ v:prev, mode:'decay' });
+        } else arr.push({ v:0, mode:'none' });
+      }
+      eff[k] = arr;
+    });
+    var cands = {};
+    Object.keys(eff).forEach(function(k){
+      var rnd = mulberry32(hashStr(s.id + '|' + k + '|dots'));
+      var phase = rnd()*Math.PI*2, arr = [];
+      for (var i=0; i<DOT_MAX; i++){
+        var ang = phase + i*2.39996323;                       /* 黄金角：由内向外均匀铺开 */
+        var rad = Math.sqrt((i+0.5)/DOT_MAX) * (0.86 + rnd()*0.28);
+        arr.push({ ox:Math.cos(ang)*rad, oy:Math.sin(ang)*rad, thr:i + (rnd()-0.5)*0.55 });
+      }
+      cands[k] = arr;
+    });
+    colonyCache[s.id] = { eff:eff, order:order, cands:cands, keys:Object.keys(eff) };
+    return colonyCache[s.id];
+  }
+
+  /* 某一期的目标态：每个聚落的点数、扩散半径、状态（新到 / 繁衍 / 凋零） */
+  function colonyState(s, idx){
+    var c = buildColonies(s), out = {};
+    var listed = {};
+    (s.timeline[idx].points||[]).forEach(function(p){ listed[p.place] = 1; });
+    c.keys.forEach(function(k){
+      var e = c.eff[k][idx];
+      if (e.v < 0.35) return;                                /* 低到看不见，视为消隐 */
+      var kind;
+      if (listed[k])      kind = (c.order[k] === idx ? 'fresh' : 'live');
+      else if (e.mode === 'grow') kind = 'grow';
+      else                     kind = 'fade';
+      out[k] = {
+        n: Math.min(DOT_MAX, e.v / DOT_K),
+        spread: 0.22 + Math.min(1, e.v/100) * 0.46,        /* ≤0.68°，不覆盖港澳 */
+        kind: kind
+      };
+    });
+    return out;
+  }
+
+  function lerpState(a, b, t){
+    var keys = {}, out = {};
+    Object.keys(a||{}).forEach(function(k){ keys[k]=1; });
+    Object.keys(b||{}).forEach(function(k){ keys[k]=1; });
+    Object.keys(keys).forEach(function(k){
+      var A = (a && a[k]) || {n:0, spread:0.22, kind:'fade'};
+      var B = (b && b[k]) || {n:0, spread:0.22, kind:'fade'};
+      out[k] = {
+        n: A.n + (B.n-A.n)*t,
+        spread: A.spread + (B.spread-A.spread)*t,
+        kind: (b && b[k]) ? B.kind : A.kind
+      };
+    });
+    return out;
+  }
+
+  /* 经纬度 → 屏幕像素：优先用 SDK 投影，缺失时用标准墨卡托数学兜底 */
+  function project(lat, lng){
+    if (map && typeof map.projectToContainer === 'function'){
+      try {
+        var q = map.projectToContainer(new TMap.LatLng(lat,lng));
+        if (q && isFinite(q.x) && isFinite(q.y) && Math.abs(q.x)<1e5 && Math.abs(q.y)<1e5) return [q.x,q.y];
+      } catch(e){}
+    }
+    var z = 4.7, clat = 34.6, clng = 106.5;
+    try { if (map && map.getZoom) z = +map.getZoom(); } catch(e){}
+    try { if (map && map.getCenter){ var c=map.getCenter(); clat=+c.lat; clng=+c.lng; } } catch(e){}
+    var ws = 256 * Math.pow(2, z);
+    function merc(la,ln){
+      var sn = Math.sin(la*Math.PI/180);
+      return [ (ln+180)/360*ws, (0.5 - Math.log((1+sn)/(1-sn))/(4*Math.PI))*ws ];
+    }
+    var a = merc(clat,clng), b = merc(lat,lng);
+    return [ dotW/2 + (b[0]-a[0]), dotH/2 + (b[1]-a[1]) ];
+  }
+
+  function sizeDotCanvas(){
+    if (!dotCanvas) return;
+    dotDPR = Math.min(2, window.devicePixelRatio || 1);
+    dotW = window.innerWidth; dotH = window.innerHeight;
+    dotCanvas.width = Math.round(dotW*dotDPR);
+    dotCanvas.height = Math.round(dotH*dotDPR);
+    dotCanvas.style.width = dotW+'px'; dotCanvas.style.height = dotH+'px';
+    if (dotCtx) dotCtx.setTransform(dotDPR,0,0,dotDPR,0,0);
+  }
+
+  function drawDots(s, st){
+    if (!dotCtx) return;
+    dotCtx.clearRect(0,0,dotW,dotH);
+    var c = buildColonies(s);
+    Object.keys(st).forEach(function(k){
+      var q = st[k], place = DATA.places[k];
+      if (!place || q.n <= 0.02) return;
+      var list = c.cands[k] || [];
+      for (var i=0; i<list.length; i++){
+        var pt = list[i];
+        var a = Math.min(1, Math.max(0, q.n - pt.thr));    /* 逐个渐显 / 渐隐，只用于生长动画 */
+        if (a <= 0.02) continue;
+        var xy = project(place.lat + pt.oy*q.spread*0.82, place.lng + pt.ox*q.spread);
+        dotCtx.globalAlpha = a * 0.95;
+        dotCtx.fillStyle = DOT_INK;
+        dotCtx.beginPath();
+        dotCtx.arc(xy[0], xy[1], 1.35 + 1.25*a, 0, Math.PI*2);
+        dotCtx.fill();
+      }
+    });
+    dotCtx.globalAlpha = 1;
+  }
+
+  /* ---------- 证据驱动视图：只画有出处的记录，其余一律留白 ----------
+     点的数量严格等于证据条数，不做跨期插值、不补点、不按 weight 换算。 */
+  function drawEvidence(s, idx){
+    evHit = [];
+    if (!dotCtx) return;
+    dotCtx.clearRect(0, 0, dotW, dotH);
+    var per = evidencePeriod(s.char, idx);
+    var places = (per && per.places) || [];
+    places.forEach(function(p){
+      var place = DATA.places[p.place];
+      var evs = p.evidence || [];
+      if (!place || !evs.length) return;
+      var xy = project(place.lat, place.lng);
+      dotCtx.globalAlpha = 0.5;
+      dotCtx.strokeStyle = DOT_INK;
+      dotCtx.lineWidth = 1;
+      dotCtx.beginPath(); dotCtx.arc(xy[0], xy[1], 13, 0, Math.PI*2); dotCtx.stroke();
+      evs.forEach(function(e, i){
+        var ang = -Math.PI/2 + i*Math.PI*2/evs.length;
+        var r = evs.length === 1 ? 0 : 7.5;
+        var px = xy[0] + Math.cos(ang)*r, py = xy[1] + Math.sin(ang)*r;
+        dotCtx.globalAlpha = 0.96;
+        dotCtx.fillStyle = DOT_INK;
+        dotCtx.beginPath(); dotCtx.arc(px, py, 3.4, 0, Math.PI*2); dotCtx.fill();
+        evHit.push({ x:px, y:py, place:p.place, sourceId:e.sourceId, factId:e.factId, text:e.text });
+      });
+      dotCtx.globalAlpha = 0.92;
+      dotCtx.fillStyle = '#e8eef5';
+      dotCtx.font = '11px sans-serif';
+      dotCtx.textAlign = 'center';
+      dotCtx.fillText(place.name + ' · ' + evs.length + ' 条', xy[0], xy[1]-20);
+    });
+    dotCtx.globalAlpha = 1;
+  }
+
+  /* 无数据期的说明卡：让「留白」有明确解释，而不是看起来像坏了 */
+  function updateEvBlank(s, idx){
+    var box = $('evBlank');
+    if (!box) return;
+    if (state.style !== 'evidence'){ box.classList.remove('on'); return; }
+    var per = evidencePeriod(s.char, idx);
+    var places = (per && per.places) || [];
+    if (!hasEvidence(s.char)){
+      $('evBlankTag').textContent    = '尚未接入';
+      $('evBlankTitle').textContent  = s.char + '姓尚未接入可考记录数据';
+      $('evBlankReason').textContent = '证据层采用逐姓接入：只有 evidence.json 里明确列出的姓才会画点，示意骨架不会被拿来冒充证据。';
+      $('evBlankNeed').textContent   = '接入办法见「权威数据核查」→ 五、数据补齐指引。';
+      box.classList.add('on'); return;
+    }
+    if (!places.length){
+      $('evBlankTag').textContent    = (per && per.status === 'data-gap') ? '数据缺口' : '无可引用记录';
+      $('evBlankTitle').textContent  = (per && per.label) || periods[idx].label;
+      var reason = (per && per.blankReason) ||
+        '该期没有可核查的逐年姓氏记录，因此整期留白。留白表示「无可引用记录」，不表示当时人少。';
+      if (per && per.catalogNote) reason += ' 已知的存世文献规模：' + per.catalogNote;
+      $('evBlankReason').textContent = reason;
+      $('evBlankNeed').textContent   = '要补上这一期，需要：' +
+        ((per && per.needed) || '带明确年代与地点的可考记录');
+      box.classList.add('on'); return;
+    }
+    box.classList.remove('on');
+  }
+
+  function redrawDots(){
+    if (state.style === 'spread') drawSpread(DATA.surnames[state.sIdx], spreadState(state.pIdx));
+    else if (state.style === 'overview') drawOverview(state.pIdx);
+    else if (state.style === 'bloom' && dotShown) drawDots(DATA.surnames[state.sIdx], dotShown);
+    else if (state.style === 'evidence') drawEvidence(DATA.surnames[state.sIdx], state.pIdx);
+  }
+
+  /* ---------- 基底层：把「有人居住的地理单元」画成一层淡点 ----------
+     这层与姓完全无关，是所有姓氏共同的载体。
+     因此：① 画面铺满全国有人区；② 多个姓可以叠在同一地点上，互不排斥。
+     密度分级：县级最淡、市级略深、省级略深 —— 视觉上呈现「有人区」而非均匀噪点。
+     缩放自适应：放大时自动隐藏县级点，避免密到盖住姓氏点。 */
+  var baseZoom = 4.7;
+  function drawBaseLayer(){
+    if (!dotCtx) return;
+    dotCtx.clearRect(0, 0, dotW, dotH);
+    var z = baseZoom;
+    try { if (map && map.getZoom) z = +map.getZoom(); } catch(e){}
+    /* 放大后隐藏县级点：它们的间距太近，会糊成一片 */
+    var showCounty = z < 5.6;
+    var lvR = { province:1.35, city:1.0, county:0.75 };
+    var lvA = { province:0.34, city:0.26, county:0.20 };
+    for (var ad in PLACES){
+      var p = PLACES[ad];
+      if (!p || p.lat == null) continue;
+      var lv = p.level || 'county';
+      if (lv === 'county' && !showCounty) continue;
+      var xy = project(p.lat, p.lng);
+      if (xy[0] < -20 || xy[1] < -20 || xy[0] > dotW+20 || xy[1] > dotH+20) continue;
+      dotCtx.globalAlpha = lvA[lv] !== undefined ? lvA[lv] : 0.2;
+      dotCtx.fillStyle = BASE_INK;
+      dotCtx.beginPath();
+      dotCtx.arc(xy[0], xy[1], lvR[lv] !== undefined ? lvR[lv] : BASE_R, 0, Math.PI*2);
+      dotCtx.fill();
+    }
+    dotCtx.globalAlpha = 1;
+  }
+
+  /* ---------- 迁徙扩散：史料核实的聚居时间线 ----------
+     每个地点生成一簇点，点数 = 证据等级 + 持续朝代数（见 compile_genealogy.py）。
+     簇内点由内向外逐个冒出 → 繁衍扩散；地点从后续朝代消失 → 整簇淡出。 */
+  var spreadCache = {};
+  function spreadCandidates(surnameKey, placeId){
+    var k = surnameKey + '|' + placeId;
+    if (spreadCache[k]) return spreadCache[k];
+    var rnd = mulberry32(hashStr(k + '|spread'));
+    var phase = rnd()*Math.PI*2, arr = [];
+    for (var i=0; i<16; i++){
+      var ang = phase + i*2.39996323;
+      var rad = Math.sqrt((i+0.5)/16) * (0.82 + rnd()*0.3);
+      arr.push({ ox:Math.cos(ang)*rad, oy:Math.sin(ang)*rad, thr:i + (rnd()-0.5)*0.5 });
+    }
+    spreadCache[k] = arr;
+    return arr;
+  }
+
+  /* 某一期该姓的聚居状态：地点 → {n, spread, kind, basis, source_ids} */
+  function spreadState(idx){
+    var s = DATA.surnames[state.sIdx];
+    var ch = s.char;
+    var pid = spreadPeriodId(idx);
+    var out = {};
+    var per = genealogyPeriod(ch, pid);
+    if (!per) return out;
+    /* 累积：本期之前出现过的地点，若在前期仍有记载则保留；否则整簇消失 */
+    var prevSites = {};
+    for (var i=0; i<idx; i++){
+      var pp = genealogyPeriod(ch, spreadPeriodId(i));
+      (pp && pp.sites || []).forEach(function(s){ prevSites[s.place] = s; });
+    }
+    (per.sites || []).forEach(function(site){
+      var p = PLACES[site.place];
+      if (!p) return;
+      out[site.place] = {
+        n: site.n || 1,
+        spread: 0.16 + Math.min(1, (site.n||1)/7) * 0.34,
+        kind: (idx === 0 || !prevSites[site.place]) ? 'fresh' : 'live',
+        basis: site.basis,
+        source_ids: site.source_ids,
+        role: site.role,
+        name: site.name,
+        path: site.path,
+        /* 铺开点：由省级结论展开而来，不是逐市统计；渲染上用更小更淡的点表示，
+           与「有具体史料记载的聚居地」区分开，避免观众误读为每一市都有史料。 */
+        isSpread: !!(site.spread && !site.evidence),
+        tier: site.tier || ''
+      };
+    });
+    return out;
+  }
+
+  function drawSpread(s, st){
+    genHit = [];
+    if (!dotCtx) return;
+    if (baseLayerOn) drawBaseLayer(); else dotCtx.clearRect(0, 0, dotW, dotH);
+    var key = s.char;
+    Object.keys(st).forEach(function(pid){
+      var q = st[pid], p = PLACES[pid];
+      if (!p || q.n <= 0.02) return;
+      var list = spreadCandidates(key, pid);
+      var isSpread = q.isSpread;
+      if (isSpread) {
+        /* 铺开点：每处画一个清晰但较小的点，代表「该姓在这一带也有分布」。
+           不能沿用点簇逻辑 —— 簇内候选点的显隐阈值是按证据强度设的，
+           而铺开点的强度很低（n≈1），用同一套阈值画出来几乎看不见，
+           近现代就退化成「还是只有几个省有点」。 */
+        var xy0 = project(p.lat + list[0].oy*q.spread*0.5, p.lng + list[0].ox*q.spread*0.5);
+        var tierA = (q.tier === 'maxpop') ? 1.0 : (q.tier === 'top' ? 0.82 : 0.6);
+        dotCtx.globalAlpha = tierA;
+        dotCtx.fillStyle = DOT_INK;
+        dotCtx.beginPath();
+        dotCtx.arc(xy0[0], xy0[1], 1.5 + (q.tier === 'present' ? 0 : 0.9), 0, Math.PI*2);
+        dotCtx.fill();
+      } else {
+        /* 证据点：按点簇画，点数 = 证据强度与延续性 */
+        for (var i=0; i<list.length; i++){
+          var pt = list[i];
+          var a = Math.min(1, Math.max(0, q.n - pt.thr));
+          if (a <= 0.02) continue;
+          var xy = project(p.lat + pt.oy*q.spread*0.85, p.lng + pt.ox*q.spread);
+          dotCtx.globalAlpha = a * 0.95;
+          dotCtx.fillStyle = DOT_INK;
+          dotCtx.beginPath();
+          dotCtx.arc(xy[0], xy[1], 1.6 + 1.5*a, 0, Math.PI*2);
+          dotCtx.fill();
+        }
+      }
+      genHit.push({ place:pid, name:p.name, path:p.path, basis:q.basis,
+                    source_ids:q.source_ids, role:q.role, n:q.n });
+    });
+    dotCtx.globalAlpha = 1;
+  }
+
+  /* 迁徙扩散的期内生长动画：同上期终态之间插值 */
+  function animateSpread(s, target, key){
+    if (dotAnim.raf){ cancelAnimationFrame(dotAnim.raf); dotAnim.raf = 0; }
+    var sameSurname = dotAnim.key && dotAnim.key.split('|')[0] === String(state.sIdx);
+    var from = (state.anim && sameSurname && spreadShown) ? spreadShown : (state.anim ? {} : null);
+    dotAnim.key = key;
+    dotAnim.to = target;
+    if (!state.anim || !from || typeof requestAnimationFrame !== 'function'){
+      spreadShown = target; drawSpread(s, target); return;
+    }
+    dotAnim.from = from;
+    dotAnim.dur = Math.min(1500, PERIOD_MS/state.speed * 0.42);
+    var start = 0;
+    var step = function(ts){
+      if (!start) start = ts;
+      var t = Math.min(1, (ts - start)/dotAnim.dur);
+      var e = t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+      drawSpread(s, lerpSpread(from, target, e));
+      if (t < 1) dotAnim.raf = requestAnimationFrame(step);
+      else { dotAnim.raf = 0; spreadShown = target; }
+    };
+    dotAnim.raf = requestAnimationFrame(step);
+  }
+
+  function lerpSpread(a, b, t){
+    var keys = {}, out = {};
+    Object.keys(a||{}).forEach(function(k){ keys[k]=1; });
+    Object.keys(b||{}).forEach(function(k){ keys[k]=1; });
+    Object.keys(keys).forEach(function(k){
+      var A = (a && a[k]) || {n:0, spread:0.16, kind:'live'};
+      var B = (b && b[k]) || {n:0, spread:0.16, kind:'live'};
+      out[k] = {
+        n: A.n + (B.n-A.n)*t,
+        spread: A.spread + (B.spread-A.spread)*t,
+        kind: (b && b[k]) ? B.kind : A.kind,
+        basis: B.basis || A.basis,
+        source_ids: B.source_ids || A.source_ids,
+        role: B.role || A.role,
+        name: B.name || A.name,
+        path: B.path || A.path,
+        /* 铺开/证据的区分必须在动画插值中保持，否则生长过程中样式会跳变 */
+        isSpread: (b && b[k]) ? !!b[k].isSpread : !!A.isSpread,
+        tier: B.tier || A.tier
+      };
+    });
+    return out;
+  }
+
+  /* 叠加总览的按姓颜色图例 */
+  var OVERVIEW_PALETTE = ['#ffd166','#7fd3f0','#f29d7e','#a8e06a','#e6a8ff','#ff9ecb','#8affc1','#ffd48a','#9fc6ff','#ffa8a8'];
+  function overviewColorOf(ch){
+    var keys = Object.keys(GEN.surnames), i = keys.indexOf(ch);
+    return OVERVIEW_PALETTE[(i < 0 ? 0 : i) % OVERVIEW_PALETTE.length];
+  }
+  function renderOverviewLegend(){
+    var box = $('overviewLegend');
+    if (!box) return;
+    var keys = Object.keys(GEN.surnames);
+    box.innerHTML = keys.map(function(ch){
+      return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#cfd8e3">' +
+        '<i style="width:7px;height:7px;border-radius:50%;background:' + overviewColorOf(ch) + ';display:inline-block"></i>' +
+        esc(ch) + '</span>';
+    }).join('') || '<span style="font-size:11px;color:#9fb0c2">尚无姓接入史料层</span>';
+  }
+
+  /* ---------- 十姓叠加总览：所有姓同时画在基底层上 ----------
+     这是「百家姓混杂在一起、铺满全中国」的直接可视化：
+     每个姓用一种颜色（仅此视图用多色），点落在共享的地点上，互不排斥。 */
+  function drawOverview(idx){
+    genHit = [];
+    if (!dotCtx) return;
+    if (baseLayerOn) drawBaseLayer(); else dotCtx.clearRect(0, 0, dotW, dotH);
+    var k = 0;
+    Object.keys(GEN.surnames).forEach(function(ch){
+      var per = genealogyPeriod(ch, spreadPeriodId(idx));
+      if (!per) return;
+      var col = overviewColorOf(ch); k++;
+      (per.sites || []).forEach(function(site){
+        var p = PLACES[site.place];
+        if (!p) return;
+        var list = spreadCandidates('ALL|' + ch, site.place);
+        var isSpread = !!(site.spread && !site.evidence);
+        if (isSpread) {
+          /* 铺开点：每姓每处一个点，缩小减淡。
+             十姓叠加时近现代有数千处，若每处都画满点簇会糊成一片，
+             读不出哪个姓在哪里更密集。 */
+          var xy0 = project(p.lat + list[0].oy*0.24, p.lng + list[0].ox*0.24);
+          dotCtx.globalAlpha = 0.5;
+          dotCtx.fillStyle = col;
+          dotCtx.beginPath();
+          dotCtx.arc(xy0[0], xy0[1], 1.3, 0, Math.PI*2);
+          dotCtx.fill();
+        } else {
+          var n = Math.min(list.length, Math.max(1, Math.round(site.n || 1)));
+          for (var i=0; i<n; i++){
+            var pt = list[i];
+            var xy = project(p.lat + pt.oy*0.24, p.lng + pt.ox*0.24);
+            dotCtx.globalAlpha = 0.82;
+            dotCtx.fillStyle = col;
+            dotCtx.beginPath();
+            dotCtx.arc(xy[0], xy[1], 2.1, 0, Math.PI*2);
+            dotCtx.fill();
+          }
+        }
+        genHit.push({ place:site.place, name:p.name, path:p.path, basis:site.basis,
+                      source_ids:site.source_ids, role:site.role, surname:ch });
+      });
+    });
+    dotCtx.globalAlpha = 1;
+  }
+
+  function initDotCanvas(){
+    dotCanvas = $('dots');
+    if (!dotCanvas || !dotCanvas.getContext) return;
+    try { dotCtx = dotCanvas.getContext('2d'); } catch(e){ dotCtx = null; }
+    sizeDotCanvas();
+    window.addEventListener('resize', function(){ sizeDotCanvas(); redrawDots(); });
+  }
+
+  function bindMapDotEvents(){
+    if (!map || typeof map.on !== 'function') return;
+    ['center_changed','zoom_changed','bounds_changed','rotation_changed','pitch_changed','pan','zoom'].forEach(function(ev){
+      try { map.on(ev, redrawDots); } catch(e){}
+    });
+  }
+
+  /* 期内生长动画：从上期终态插值到本期终态，点由内向外逐个冒出 */
+  function animateDots(s, target, key){
+    if (dotAnim.raf){ cancelAnimationFrame(dotAnim.raf); dotAnim.raf = 0; }
+    var sameSurname = dotAnim.key && dotAnim.key.split('|')[0] === String(state.sIdx);
+    /* 同姓切期：从上期终态过渡；首次加载 / 换姓：从「无」长出，表现得姓 */
+    var from = (state.anim && sameSurname && dotShown) ? dotShown : (state.anim ? {} : null);
+    dotAnim.key = key;
+    dotAnim.to = target;
+    if (!state.anim || !from || typeof requestAnimationFrame !== 'function'){
+      dotShown = target; drawDots(s, target); return;
+    }
+    dotAnim.from = from;
+    dotAnim.dur = Math.min(1500, PERIOD_MS/state.speed * 0.42);
+    var start = 0;
+    var step = function(ts){
+      if (!start) start = ts;
+      var t = Math.min(1, (ts - start)/dotAnim.dur);
+      var e = t<0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;   /* easeInOutQuad */
+      var cur = lerpState(dotAnim.from, dotAnim.to, e);
+      dotShown = cur; drawDots(s, cur);
+      if (t < 1) dotAnim.raf = requestAnimationFrame(step);
+      else { dotAnim.raf = 0; dotShown = dotAnim.to; drawDots(s, dotShown); }
+    };
+    dotAnim.raf = requestAnimationFrame(step);
+  }
+
+  function stopDotAnim(){
+    if (dotAnim.raf){ cancelAnimationFrame(dotAnim.raf); dotAnim.raf = 0; }
+    if (dotCtx) dotCtx.clearRect(0,0,dotW,dotH);
+    dotShown = null; dotAnim.key = '';
+  }
+
+  function LL(id){ var p=DATA.places[id]; return new TMap.LatLng(p.lat, p.lng); }
+
+  function drawVectors(surname, frame, style){
+    dropLayer(routeLayer);  routeLayer = null;
+    dropLayer(markerLayer); markerLayer = null;
+    if(!map || style === 'bloom') return;   /* 点密度演化：清掉所有箭头与节点，只画 canvas 点 */
+
+    var nodeStyle = (style === 'nodes' || style === 'routes');
+    var lineStyles = {}, lineGeoms = [], markStyles = {}, markGeoms = [];
+
+    /* 1. 路线：nodes 累积前几期轨迹，其余样式只画当期 */
+    var routes = [];
+    if (style === 'nodes') {
+      for (var pi=0; pi<=state.pIdx; pi++) {
+        (surname.timeline[pi].routes||[]).forEach(function(r){
+          routes.push({ from:r.from, to:r.to, old: pi < state.pIdx });
+        });
+      }
+    } else {
+      (frame.routes||[]).forEach(function(r){ routes.push({ from:r.from, to:r.to, old:false }); });
+    }
+    var valid = routes.filter(function(r){ return DATA.places[r.from] && DATA.places[r.to]; });
+
+    valid.forEach(function(r,i){
+      var pts = nodeStyle ? arcPoints(r.from, r.to, 0.10 + (i%3)*0.02)
+                          : [DATA.places[r.from], DATA.places[r.to]];
+      var sid = 'ln'+i;
+      lineStyles[sid] = new TMap.PolylineStyle({
+        color: r.old ? 'rgba(240,196,106,0.24)' : '#f0c46a',
+        width: r.old ? 2 : (style === 'routes' ? 4 : 3),
+        lineCap: 'round'
+      });
+      lineGeoms.push({ id:'r'+i, styleId:sid,
+        paths: pts.map(function(q){ return new TMap.LatLng(q.lat,q.lng); }) });
+
+      /* 方向箭头：取弧线 70%~90% 处的切线角，按屏幕坐标旋转 */
+      if (nodeStyle && pts.length >= 10) {
+        var a=pts[7], b=pts[9];
+        var ang = -Math.atan2(b.lat-a.lat, b.lng-a.lng) * 180 / Math.PI;
+        var asid = 'ar'+i;
+        markStyles[asid] = new TMap.MarkerStyle({ width:16, height:16, anchor:{x:8,y:8},
+          src: svgArrow(ang, r.old ? 'rgba(240,196,106,0.45)' : '#f6d79a') });
+        markGeoms.push({ id:'a'+i, styleId:asid, position:new TMap.LatLng(a.lat,a.lng) });
+      }
+    });
+
+    /* 2. 节点：分级圆点 / 端点 / 密度面沿用老根环 */
+    if (style === 'nodes') {
+      frame.points.forEach(function(p,i){
+        if(!DATA.places[p.place]) return;
+        var w=p.weight, r = w>=70 ? 11 : (w>=40 ? 8 : 5);
+        var isNew = (frame.routes||[]).some(function(rr){ return rr.to===p.place; });
+        var sid = 'nd'+r+(isNew?'n':'o');
+        if(!markStyles[sid]){
+          markStyles[sid] = new TMap.MarkerStyle({
+            width:(r+3)*2, height:(r+3)*2, anchor:{x:r+3,y:r+3},
+            src: svgNode(r, isNew?'#6fd3c7':'#e8c46c', isNew?'#3f9c91':'#a8822f')
+          });
+        }
+        markGeoms.push({ id:'n'+i, styleId:sid, position:LL(p.place) });
+      });
+      var root = surname.timeline[0].points.slice().sort(function(a,b){return b.weight-a.weight;})[0];
+      if(root && DATA.places[root.place]){
+        markStyles['root'] = new TMap.MarkerStyle({ width:34, height:34, anchor:{x:17,y:17}, src:svgRing() });
+        markGeoms.push({ id:'root', styleId:'root', position:LL(root.place) });
+      }
+    } else if (style === 'routes') {
+      var seen = {};
+      valid.forEach(function(r){
+        [r.from,r.to].forEach(function(k){
+          if(seen[k]) return; seen[k]=1;
+          var isTo=(k===r.to), sid=isTo?'end':'start', rr=isTo?7:5;
+          if(!markStyles[sid]){
+            markStyles[sid] = new TMap.MarkerStyle({
+              width:(rr+3)*2, height:(rr+3)*2, anchor:{x:rr+3,y:rr+3},
+              src: svgNode(rr, isTo?'#6fd3c7':'#e8c46c', isTo?'#3f9c91':'#a8822f')
+            });
+          }
+          markGeoms.push({ id:'e'+markGeoms.length, styleId:sid, position:LL(k) });
+        });
+      });
+    } else {
+      var root2 = surname.timeline[0].points.slice().sort(function(a,b){return b.weight-a.weight;})[0];
+      if(root2 && DATA.places[root2.place]){
+        markStyles['origin'] = new TMap.MarkerStyle({ width:34, height:34, anchor:{x:17,y:17}, src:svgRing() });
+        markGeoms.push({ id:'root', styleId:'origin', position:LL(root2.place) });
+      }
+      valid.forEach(function(r,i){
+        markStyles['node'] = markStyles['node'] ||
+          new TMap.MarkerStyle({ width:14, height:14, anchor:{x:7,y:7}, src:svgDot() });
+        markGeoms.push({ id:'d'+i, styleId:'node', position:LL(r.to) });
+      });
+    }
+
+    if(lineGeoms.length){
+      routeLayer = new TMap.MultiPolyline({ map:map, styles:lineStyles, geometries:lineGeoms });
+    }
+    if(markGeoms.length){
+      markerLayer = new TMap.MultiMarker({ map:map, styles:markStyles, geometries:markGeoms });
+    }
+  }
+
+  /* ---------- 界面渲染（$ / periods / state 已在脚本开头初始化） ---------- */
+  function buildStyleButtons(){
+    $('stylebar').innerHTML = STYLE_KEYS.map(function(k){
+      return '<button data-style="'+k+'" title="'+STYLES[k].note+'">'+STYLES[k].label+'</button>';
+    }).join('') + '<button data-style="overview" title="'+OVERVIEW.note+'">'+OVERVIEW.label+'</button>';
+    $('stylebar').addEventListener('click', function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      state.style=b.dataset.style; render();
+    });
+  }
+  function buildSurnameButtons(){
+    $('surnames').innerHTML = DATA.surnames.map(function(s,i){
+      return '<button data-i="'+i+'" title="'+s.char+'姓">'+s.char+'</button>';
+    }).join('');
+    $('surnames').addEventListener('click', function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      state.sIdx=+b.dataset.i; state.pIdx=0; render();
+    });
+  }
+  function buildPeriodButtons(){
+    $('periods').innerHTML = periods.map(function(p,i){
+      return '<button data-i="'+i+'"><span class="tag">'+p.tag+'</span><span>'+p.label+'</span><span class="era">'+p.era+'</span></button>';
+    }).join('');
+    $('periods').addEventListener('click', function(e){
+      var b=e.target.closest('button'); if(!b) return;
+      state.pIdx=+b.dataset.i; render();
+    });
+    $('timeline').innerHTML = periods.map(function(p,i){ return '<div data-i="'+i+'"><i></i></div>'; }).join('');
+    $('timeline').addEventListener('click', function(e){
+      var d=e.target.closest('div[data-i]'); if(!d) return;
+      state.pIdx=+d.dataset.i; render();
+    });
+  }
+
+  /* 每一期的聚居地点清单：口播时可照着念出具体地名，也便于核对画面。
+     近现代期有省级锚点 + 省内铺开点 + 史料细点共 500+ 条，
+     全部平铺会把侧栏压垮，因此按「有史料依据的地点」与「省内铺开」两段呈现。 */
+  function renderSiteList(s, idx){
+    var box = $('siteList');
+    if (!box) return;
+    if (state.style !== 'spread'){ box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    var gc = (GEN.surnames || {})[s.char];
+    if (!gc){
+      box.innerHTML = '<div class="sl-h">史料层未接入</div>' +
+        '<div class="sl-n">该姓尚未接入史料层，画面无点。逐姓接入，不用示意数据冒充。</div>';
+      return;
+    }
+    var pid = spreadPeriodId(idx);
+    var per = (gc.periods || {})[pid];
+    var sites = (per && per.sites) || [];
+    if (!sites.length){
+      box.innerHTML = '<div class="sl-h">' + esc((per && per.label) || pid) + ' · 无可引用史料</div>' +
+        '<div class="sl-n">该期没有带出处的聚居记载 → 整期留白。留白表示无可引用史料，不表示当时没有此姓。</div>';
+      return;
+    }
+
+    /* 分层：铺开点（spread=true，来源为省级结论） vs 有具体依据的点 */
+    var spread = [], evid = [];
+    sites.forEach(function(x){
+      if (x.spread && !x.evidence) spread.push(x); else evid.push(x);
+    });
+
+    function li(x){
+      return '<li><b>' + esc(x.name) + '</b><span class="sl-r">' + esc(x.role || '') +
+        ' · ' + (Math.round(x.n*10)/10) + ' 点</span>' +
+        (x.basis ? '<span class="sl-b">' + esc(x.basis) + '</span>' : '') + '</li>';
+    }
+
+    var h = '<div class="sl-h">' + esc((per && per.label) || pid) + ' · ' + sites.length + ' 处</div>';
+    if (evid.length){
+      h += '<div class="sl-sub">有据可查的聚居地点 · ' + evid.length + ' 处</div><ul>' +
+        evid.map(li).join('') + '</ul>';
+    }
+    if (spread.length){
+      /* 铺开点按省聚合，避免几百条平铺 */
+      var byProv = {};
+      spread.forEach(function(x){
+        var k = x.province || (PLACES[x.place] && PLACES[x.place].path) || '其他';
+        var top = k.split('/')[0];
+        (byProv[top] = byProv[top] || []).push(x);
+      });
+      var provs = Object.keys(byProv).sort(function(a,b){ return byProv[b].length - byProv[a].length; });
+      h += '<div class="sl-sub">省内铺开 · ' + spread.length + ' 处（分布在 ' + provs.length + ' 个省级单元）</div>';
+      h += '<div class="sl-n" style="margin:2px 0 8px">依据「该姓在该省有分布」的官方结论展开，' +
+        '表示分布到全省范围，非逐市统计；点数只表示证据强度，不是人口数。</div>';
+      h += '<ul>';
+      provs.forEach(function(pn){
+        var lst = byProv[pn];
+        var mx = 0, tier = '';
+        lst.forEach(function(x){ if (x.n > mx){ mx = x.n; tier = x.tier || ''; } });
+        var names = lst.map(function(x){ return x.name; });
+        var show = names.slice(0, 8).join('、');
+        if (names.length > 8) show += ' 等 ' + names.length + ' 处';
+        h += '<li><b>' + esc(pn) + '</b><span class="sl-r">' + lst.length + ' 处 · 最高 ' +
+          (Math.round(mx*10)/10) + ' 点' + (tier ? ' · ' + esc(tierLabel(tier)) : '') + '</span>' +
+          '<span class="sl-b">' + esc(show) + '</span></li>';
+      });
+      h += '</ul>';
+    }
+    if (!evid.length && !spread.length){
+      h += '<div class="sl-n">本期无地点。</div>';
+    }
+    box.innerHTML = h;
+  }
+
+  function tierLabel(t){
+    return ({ maxpop:'人口最多的省份', top:'该省第一大姓', present:'省内有分布' })[t] || t;
+  }
+
+  function render(){
+    var s = DATA.surnames[state.sIdx];
+    var frame = s.timeline[state.pIdx];
+    var p = periods[state.pIdx];
+
+    $('glyph').textContent = s.char;
+    $('originName').textContent = s.origin;
+    $('originModern').textContent = s.originModern;
+    $('oneline').textContent = s.oneLine;
+    /* 得姓与郡望面板：史料层接入后，改用史料里的发祥地与依据 */
+    var gc0 = (GEN.surnames || {})[s.char];
+    if (state.style === 'spread' && gc0 && gc0.origin){
+      var o = gc0.origin;
+      var op = o.place ? PLACES[o.place] : null;
+      $('originBox').innerHTML = '<b>' + esc(o.modern_region || s.origin) + '</b>' +
+        (op ? ('<div class="m">' + esc(op.path || '') + '</div>') : '') +
+        '<p>' + esc(o.basis || '') + '</p>' +
+        (o.source_ids && o.source_ids.length ? ('<p style="font-size:11px;color:#9fb0c2">出处编号：' +
+          esc(o.source_ids.join('、')) + '（见「权威数据核查」）</p>') : '');
+    } else {
+      $('originBox').innerHTML = '<b>'+s.origin+'</b><div class="m">'+s.originModern+'</div><p>'+s.originNote+'</p>';
+    }
+    $('pl').textContent = p.label + ' · ' + p.era;
+    $('ti').textContent = frame.title;
+    /* 字幕：史料层视图下，标题与说明改由该姓该期的真实聚居地点生成，
+       保证画面上出现的每一个点都与口播文字对得上；示意骨架文案仅作对照保留。 */
+    var gc = (GEN.surnames || {})[s.char];
+    if (state.style === 'spread' && gc){
+      var pid = spreadPeriodId(state.pIdx);
+      var per = (gc.periods || {})[pid];
+      var sites = (per && per.sites) || [];
+      var prevSites = {};
+      for (var i=0;i<state.pIdx;i++){
+        var pp = (gc.periods || {})[spreadPeriodId(i)];
+        (pp && pp.sites || []).forEach(function(x){ prevSites[x.place]=1; });
+      }
+      var fresh = sites.filter(function(x){ return !prevSites[x.place]; });
+      if (!sites.length){
+        $('ti').textContent = (per && per.label) || p.label;
+        $('cap').textContent = '本期没有查到带出处的聚居记载，因此画面留白。留白表示无可引用史料，不表示当时没有此姓。';
+      } else {
+        /* 近现代期按「有据可查」与「省内铺开」两段叙述：
+           铺开点有 500 条，不能逐个念出来，但必须讲清楚它是什么、依据是什么。 */
+        var evid = sites.filter(function(x){ return !x.spread || x.evidence; });
+        var spreadSites = sites.filter(function(x){ return x.spread && !x.evidence; });
+        var tierCount = {};
+        spreadSites.forEach(function(x){ tierCount[x.tier] = (tierCount[x.tier]||0)+1; });
+        var maxTier = '';
+        spreadSites.forEach(function(x){ if (x.tier === 'maxpop') maxTier = x.province; });
+
+        if (evid.length){
+          var en = evid.map(function(x){ return x.name; });
+          var eshown = en.slice(0, 6).join('、');
+          if (en.length > 6) eshown += ' 等 ' + en.length + ' 处';
+          $('ti').textContent = (per && per.label) + '：铺开 ' + spreadSites.length +
+            ' 处，有据可查 ' + evid.length + ' 处';
+          $('cap').textContent = '有据可查的聚居地点：' + eshown + '。' +
+            (maxTier ? ('其中 ' + maxTier + '是该姓人口最多的省份，点簇最密。') : '') +
+            (spreadSites.length ? ('该姓在 ' + Object.keys(tierCount).length + ' 类省份中均有分布，' +
+              '省内已按地级市铺开——依据是官方「均有分布」的结论本身，不是逐市统计。') : '') +
+            ' 点越密表示证据越强、延续越久，不代表人口多少。';
+        } else {
+          $('ti').textContent = (per && per.label) + '：铺开 ' + spreadSites.length + ' 处';
+          $('cap').textContent = '该姓在 ' + Object.keys(tierCount).length +
+            ' 类省份中均有分布，已按地级市铺开。依据是官方「均有分布」的结论本身，不是逐市统计。' +
+            (maxTier ? (maxTier + '是该姓人口最多的省份，点簇最密。') : '') +
+            ' 点越密表示证据越强，不代表人口多少。';
+        }
+      }
+    } else {
+      /* 当代期字幕沿用原有示意叙事，不改写用户原稿；统一追加角标避免被当成统计结论 */
+      $('cap').textContent = frame.caption +
+        (state.style === 'evidence'
+          ? '（当前为「可考记录」视图：以上示意叙事不参与绘图，画面只显示有出处的记录）'
+          : (state.pIdx === periods.length - 1 ? '（本段为示意叙事；可引用的当代数据见「权威数据核查」）' : ''));
+    }
+    $('stat').textContent = densitySummary(s, state.pIdx);
+    renderSiteList(s, state.pIdx);
+
+    Array.prototype.forEach.call($('surnames').children, function(b,i){ b.classList.toggle('on', i===state.sIdx); });
+    Array.prototype.forEach.call($('periods').children, function(b,i){ b.classList.toggle('on', i===state.pIdx); });
+    Array.prototype.forEach.call($('timeline').children, function(d,i){
+      d.classList.toggle('done', i<state.pIdx);
+      d.classList.toggle('now', i===state.pIdx && state.playing);
+      if(i!==state.pIdx) d.querySelector('i').style.width = i<state.pIdx ? '100%' : '0';
+    });
+
+    document.documentElement.style.setProperty('--dur', (PERIOD_MS/state.speed)+'ms');
+    renderMap(s, frame);
+  }
+
+  /* 字幕下方的密度读数：让「扩散 / 凋零」可被口头讲出来，而不是只靠肉眼猜 */
+  function densitySummary(s, idx){
+    if (state.style === 'spread'){
+      if (!hasGenealogy(s.char))
+        return '史料层：' + s.char + '姓尚未接入史料层，本期无点（逐姓接入，不套用示意骨架）。';
+      var per = genealogyPeriod(s.char, spreadPeriodId(idx));
+      var sites = (per && per.sites) || [];
+      if (!sites.length)
+        return '史料层：本期 0 处有史料依据的聚居地点 → 整期留白。留白表示无可引用史料，不表示当时没有此姓。';
+      var pts = 0, fresh = 0, live = 0;
+      var prev = {};
+      for (var i=0;i<idx;i++){
+        var pp = genealogyPeriod(s.char, spreadPeriodId(i));
+        (pp && pp.sites || []).forEach(function(x){ prev[x.place]=1; });
+      }
+      sites.forEach(function(x){
+        pts += Math.round(x.n || 0);
+        if (prev[x.place]) live++; else fresh++;
+      });
+      /* 近现代期要额外报出铺开规模与分级，否则「500 处」这个数字没有含义 */
+      var spreadSites = sites.filter(function(x){ return x.spread && !x.evidence; });
+      var provSet = {}, maxp = 0;
+      spreadSites.forEach(function(x){
+        provSet[x.province || ''] = 1;
+        if (x.tier === 'maxpop') maxp++;
+      });
+      var tail = spreadSites.length
+        ? (' · 其中省内铺开 ' + spreadSites.length + ' 处，遍及 ' + Object.keys(provSet).length +
+           ' 个省级单元' + (maxp ? '，含人口最多的省份' : '') + '；铺开依据官方「均有分布」结论，非逐市统计')
+        : '';
+      return '本期史料层：' + sites.length + ' 个聚居地点 / 共 ' + pts +
+        ' 个点 · 新到 ' + fresh + ' 地 / 延续 ' + live + ' 地' + tail +
+        ' · 点数量 = 聚居证据等级与持续朝代数，不是人口数。';
+    }
+    if (state.style === 'evidence'){
+      if (!hasEvidence(s.char))
+        return '可考记录：' + s.char + '姓尚未接入证据层，本期无点（逐姓接入，不套用示意骨架）。';
+      var ep = evidencePeriod(s.char, idx), eps = (ep && ep.places) || [], evn = 0;
+      eps.forEach(function(p){ evn += (p.evidence || []).length; });
+      if (!evn)
+        return '可考记录：本期 0 条可引用记录 → 整期留白。留白表示没有可核查记录，不表示当时没有此姓。';
+      return '可考记录：' + eps.length + ' 个代表地点 / ' + evn +
+        ' 条可核查证据 · 点数量 ≠ 人口数 · 逐条出处见「权威数据核查」第五节。';
+    }
+    var cur = colonyState(s, idx), prev = idx>0 ? colonyState(s, idx-1) : {};
+    var total=0, fresh=0, grow=0, denser=0, shrink=0, fade=0;
+    Object.keys(cur).forEach(function(k){
+      var q=cur[k]; total += Math.round(q.n);
+      if (q.kind === 'fresh') fresh++;
+      if (q.kind === 'grow')  grow++;
+      if (q.kind === 'fade')  fade++;
+      if (prev[k] && q.n > prev[k].n + 0.5) denser++;
+      if (prev[k] && q.n < prev[k].n - 0.5) shrink++;
+    });
+    return '本期点密度：共 ' + total + ' 个点 · 新到 ' + fresh + ' 地 / 变密 ' + denser +
+      ' 地（落地后扩散 ' + grow + ' 地） / 变疏 ' + shrink + ' 地 / 凋零中 ' + fade + ' 地' +
+      (state.style === 'bloom' ? '' : '（切到「迁徙扩散」可看有史料依据的版本）');
+  }
+
+  /* ---------- 按当前样式分发地图图层 ---------- */
+  function renderMap(s, frame){
+    var st = state.style, cfg = STYLES[st] || STYLES.spread;
+    var useHeat     = (st === 'heat' || st === 'heatFine');
+    var useSpread   = (st === 'spread');
+    var useOverview = (st === 'overview');
+    var useBloom    = (st === 'bloom');
+    var useEvidence = (st === 'evidence');
+    var useDots     = useHeat || useBloom || useEvidence || useSpread || useOverview;
+
+    $('legendHeat').style.display      = useHeat ? 'block' : 'none';
+    $('legendNodes').style.display     = (!useHeat && !useBloom && !useEvidence && !useSpread && !useOverview) ? 'block' : 'none';
+    $('legendDots').style.display      = useBloom ? 'block' : 'none';
+    $('legendSpread').style.display    = (useSpread || useOverview) ? 'block' : 'none';
+    $('legendEvidence').style.display  = useEvidence ? 'block' : 'none';
+    $('dots').style.display            = useDots ? 'block' : 'none';
+    $('legendOverview').style.display   = useOverview ? 'block' : 'none';
+    if (useOverview) renderOverviewLegend();
+    var note = $('styleNote');
+    if (useOverview) {
+      note.textContent = OVERVIEW.note;
+    } else if (useSpread) {
+      note.textContent = hasGenealogy(s.char)
+        ? '史料层：只画有出处的聚居地点。点簇数量 = 聚居证据等级与持续朝代数，不是人口数。'
+          + '近现代期另有「省内铺开点」（小而淡），依据官方「该姓在该省有分布」的结论展开到地级市，'
+          + '不是逐市统计；淡色底层为全国有人居住的行政单元，多个姓可共存于同一地点。'
+        : '该姓尚未接入史料层。史料层逐姓接入，不会拿示意骨架冒充史料。';
+    } else if (useEvidence) {
+      note.textContent = hasEvidence(s.char)
+        ? '本姓已接入可考记录。只画有出处的点；无记录的朝代整期留白并说明原因。点数量 = 证据条数，不是人口数。'
+        : '本姓尚未接入可考记录，当前留白。证据层逐姓接入，不会拿示意骨架冒充证据。';
+    } else {
+      note.textContent = cfg.note;
+    }
+    note.className = useHeat ? 'warn' : '';
+    updateEvBlank(s, state.pIdx);
+    Array.prototype.forEach.call($('stylebar').children, function(b){
+      b.classList.toggle('on', b.dataset.style === st);
+    });
+
+    if (useHeat && !heat) {
+      diag('热力层未就绪，当前密度面样式无法显示；请切回「迁徙扩散」。');
+    } else if (!useHeat) {
+      var d = $('diag');
+      if (d && d.textContent.indexOf('热力层未就绪') >= 0) {
+        d.classList.remove('on'); d.textContent = '';
+      }
+    }
+
+    if (heat) {
+      try {
+        if (useHeat) {
+          heat.setRadius(cfg.radius);
+          heat.setOpacity(cfg.opacity);
+          heat.setData(heatPoints(s, frame, cfg.fine));
+        } else {
+          heat.setData([]);   /* 非热力样式：清空连续密度面 */
+        }
+      } catch(e){ diag('热力数据更新失败：' + e.message); }
+    }
+    /* 点密度 / 史料层 / 可考记录三种模式下都把箭头与节点图层清干净 */
+    try { drawVectors(s, frame, (useEvidence || useSpread) ? 'bloom' : st); }
+    catch(e){ if(!useBloom && !useEvidence) diag('图层绘制失败：' + e.message); }
+
+    if (useOverview) {
+      stopDotAnim();
+      spreadShown = null;
+      drawOverview(state.pIdx);
+    } else if (useSpread) {
+      animateSpread(s, spreadState(state.pIdx), state.sIdx + '|' + state.pIdx);
+    } else if (useBloom) {
+      animateDots(s, colonyState(s, state.pIdx), state.sIdx + '|' + state.pIdx);
+    } else {
+      stopDotAnim();
+      if (useEvidence){
+        dotShown = null;   /* 切回示意骨架时重新生长，避免把证据态当插值起点 */
+        spreadShown = null;
+        drawEvidence(s, state.pIdx);
+      }
+    }
+  }
+
+  /* ---------- 五期对比板：抽象示意图，不含底图与任何边界 ---------- */
+  function getProjBox(){
+    if (projBox) return projBox;
+    var a=90,b=-90,c=180,d=-180;
+    Object.keys(DATA.places).forEach(function(k){
+      var p=DATA.places[k];
+      if(p.lat<a)a=p.lat; if(p.lat>b)b=p.lat;
+      if(p.lng<c)c=p.lng; if(p.lng>d)d=p.lng;
+    });
+    projBox={minLat:a,maxLat:b,minLng:c,maxLng:d};
+    return projBox;
+  }
+  /* 对比板同样只用点：每格画出该期各地的点簇，点与点之间不连线 */
+  function miniSVG(s, idx){
+    var W=170,H=125,pad=14,box=getProjBox();
+    var st = colonyState(s, idx), c = buildColonies(s);
+    function P(id){
+      var p=DATA.places[id];
+      return [ pad + (p.lng-box.minLng)/(box.maxLng-box.minLng)*(W-2*pad),
+               H-pad - (p.lat-box.minLat)/(box.maxLat-box.minLat)*(H-2*pad) ];
+    }
+    var parts=[];
+    Object.keys(st).forEach(function(k){
+      var q=st[k];
+      if(!DATA.places[k] || q.n<=0.02) return;
+      var xy=P(k);
+      var R = 6 + Math.min(1, q.n/DOT_MAX)*8;
+      (c.cands[k]||[]).forEach(function(pt){
+        var a = Math.min(1, Math.max(0, q.n-pt.thr));
+        if(a<=0.02) return;
+        parts.push('<circle cx="'+(xy[0]+pt.ox*R).toFixed(1)+'" cy="'+(xy[1]-pt.oy*R*0.85).toFixed(1)+
+          '" r="'+(1.0+0.9*a).toFixed(1)+'" fill="'+DOT_INK+'" fill-opacity="'+(a*0.95).toFixed(2)+'"/>');
+      });
+    });
+    return '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+parts.join('')+'</svg>';
+  }
+  function renderCompare(){
+    var s=DATA.surnames[state.sIdx];
+    $('compareName').textContent=s.char+'姓 · 5 个断面';
+    $('compareGrid').innerHTML=periods.map(function(p,i){
+      return '<div class="cell'+(i===state.pIdx?' on':'')+'"><div class="ct">'+p.tag+' · '+
+        p.label.split(' · ')[0]+'</div>'+miniSVG(s,i)+'</div>';
+    }).join('');
+    $('compare').classList.add('on');
+  }
+
+  /* ---------- 播放控制 ---------- */
+  function stop(){ state.playing=false; if(state.timer){clearInterval(state.timer);state.timer=null;} $('btnPlay').textContent='▶ 播放'; }
+  function play(){
+    if(state.playing){ stop(); render(); return; }
+    if(state.pIdx>=periods.length-1) state.pIdx=0;
+    state.playing=true; $('btnPlay').textContent='❚❚ 暂停';
+    render();
+    state.timer=setInterval(function(){
+      if(state.pIdx>=periods.length-1){ stop(); render(); return; }
+      state.pIdx++; render();
+      if(state.pIdx>=periods.length-1){ stop(); render(); }  /* 到末期即停，不多等一个周期 */
+    }, PERIOD_MS/state.speed);
+  }
+  function setSpeed(v){ var was=state.playing; stop(); state.speed=v; $('btnSpeed').textContent='速度 '+v+'×';
+    if(was) play(); else render(); }
+
+  function toggleCinema(force){
+    var on = (typeof force === 'boolean') ? force : !$('app').classList.contains('cinema');
+    $('app').classList.toggle('cinema', on);
+    $('btnCinema').textContent = on ? '退出演示' : '全屏演示';
+    $('btnExitCinema').classList.toggle('on', on);
+    setTimeout(function(){ try{ if(map) map.resize(); }catch(e){} }, 320);
+  }
+
+  /* ---------- 权威数据核查弹层：纯表格与文字，不生成任何地图图形 ---------- */
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+    });
+  }
+  function linkOrText(u){
+    return /^https?:\/\//.test(u)
+      ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u) + '</a>'
+      : esc(u);
+  }
+  function renderSources(){
+    var s = DATA.surnames[state.sIdx];
+    $('sourcesName').textContent = s.char + '姓';
+    var M = SRC.meta || {}, srcList = SRC.sources || [],
+        facts = SRC.facts || [], limits = SRC.limits || [];
+    var byId = {}; srcList.forEach(function(x){ byId[x.id] = x; });
+    var parts = [];
+
+    parts.push('<h3>一、先说结论</h3>');
+    if (M.hardLimit) parts.push('<div class="warn">' + esc(M.hardLimit) + '</div>');
+    if (M.appliesTo)   parts.push('<p style="margin-top:10px"><b>适用范围：</b>' + esc(M.appliesTo) + '</p>');
+    if (M.scopeWarning)parts.push('<p><b>口径提醒：</b>' + esc(M.scopeWarning) + '</p>');
+    if (M.compliance)  parts.push('<p><b>合规：</b>' + esc(M.compliance) + '</p>');
+    if (M.correction)  parts.push('<div class="warn" style="margin-top:10px"><b>更正：</b>' + esc(M.correction) + '</div>');
+
+    var pst = SRC.provinceTopSurname2019 || {};
+    var provinces = (pst.bySurname || {})[s.char] || [];
+    parts.push('<h3>二、' + esc(s.char) + '姓 · 可查到的省级依据</h3>');
+    if (provinces.length){
+      parts.push('<p><b>公安部 2019：</b>列明 <b>' + esc(s.char) + '</b> 为以下 <b>' + provinces.length +
+        '</b> 个省（区、市）第一大姓：<b>' + esc(provinces.join('、')) + '</b>。这是排序结论，<b>不含人数</b>。</p>');
+    } else {
+      parts.push('<p><b>公安部 2019：</b><b>未列 ' + esc(s.char) +
+        ' 姓为任何省（区、市）第一大姓</b>。这不等于该姓不在这些省份分布——报告另有「常见姓氏在全国 31 个省区市均有分布」的判断。</p>');
+    }
+    var mp = SRC.maxProvince2021 || {}, mx = (mp.bySurname || {})[s.char];
+    if (mx){
+      parts.push('<p><b>公安部 2021：</b>点名 <b>' + esc(s.char) + '</b> 姓所属分组<b>人口分布最多的省份为 ' +
+        esc(mx) + '</b>（绝对人数最多，不等于占比最高）。</p>');
+    } else {
+      parts.push('<p><b>公安部 2021：</b><b>未点名 ' + esc(s.char) +
+        ' 姓</b>所属分组（原文以「某姓等 N 个」列举、未展开表4），不能推断其人口最多的省份。</p>');
+    }
+    if (pst.note) parts.push('<p style="font-size:11px;color:#9fb0c2">' + esc(pst.note) + '</p>');
+    if (mp.note)  parts.push('<p style="font-size:11px;color:#9fb0c2">' + esc(mp.note) + '</p>');
+
+    function factBlock(title, list){
+      if (!list.length) return '';
+      var h = '<h4>' + esc(title) + '</h4>';
+      list.forEach(function(f){
+        var src = byId[f.sourceId] || {};
+        h += '<div class="fact"><div class="txt">' + esc(f.text) + '</div><div class="meta">' +
+          '<span class="tag">' + esc(f.level === 'national' ? '全国' : (f.level === 'province' ? '省级' : '市级')) + '</span>' +
+          esc(f.region || '') + (f.value ? ' · 数值 <b>' + esc(f.value) + '</b>' : '') +
+          ' · 来源 <b>' + esc(src.title || f.sourceId) + '</b>（' + esc(src.publisher || '') + '，' + esc(src.date || '') + '）' +
+          (f.caveat ? '<br>注：' + esc(f.caveat) : '') + '</div></div>';
+      });
+      return h;
+    }
+    var common = facts.filter(function(f){ return f.surname === '*'; });
+    var own    = facts.filter(function(f){ return f.surname === s.char; });
+    parts.push('<h3>三、可引用事实（逐条带出处）</h3>');
+    parts.push(factBlock('适用于全部姓氏的全国口径', common));
+    parts.push(factBlock(esc(s.char) + '姓专属', own));
+    if (!own.length){
+      parts.push('<p style="font-size:11.5px;color:#9fb0c2">当前公开资料中未检索到 ' + esc(s.char) +
+        ' 姓的省级具体人数；本页不会为此编造数值。</p>');
+    }
+
+    /* ---------- 史料层：逐点溯源 ---------- */
+    var gc = (GEN.surnames || {})[s.char];
+    parts.push('<h3>四、史料层 · 每一处聚居地点的出处</h3>');
+    if (!gc){
+      parts.push('<p style="font-size:11.5px;color:#9fb0c2">' + esc(s.char) +
+        '姓尚未接入史料层。史料层逐姓接入，示意骨架不会被拿来冒充史料。</p>');
+    } else {
+      parts.push('<p style="font-size:11.5px;color:#9fb0c2">下表列出画面上每一个点簇的地点与依据。' +
+        '<b>点数 = 聚居证据等级 + 持续朝代数，不是人口数。</b>' +
+        (gc.origin ? ('发祥地：<b>' + esc(gc.origin.modern_region || '') + '</b>（' +
+          esc(gc.origin.dynasty || '') + '）——' + esc(gc.origin.basis || '') + '）') : '') +
+        '</p>');
+      var gsrc = {};
+      (gc.sources || []).forEach(function(x){ gsrc[x.id] = x; });
+      SPREAD_PERIODS.forEach(function(pid){
+        var per = (gc.periods || {})[pid];
+        if (!per || !per.sites || !per.sites.length) return;
+        var spreadSites = per.sites.filter(function(x){ return x.spread && !x.evidence; });
+        var evidSites = per.sites.filter(function(x){ return !(x.spread && !x.evidence); });
+        parts.push('<h4>' + esc(per.label || pid) + ' · ' + per.sites.length + ' 处</h4>');
+
+        /* 有据可查的地点：逐条列出，每条带出处链接 */
+        if (evidSites.length){
+          parts.push('<table><tr><th>地点</th><th>角色</th><th>点数</th><th>依据</th></tr>');
+          evidSites.forEach(function(site){
+            var srcs = (site.source_ids || []).map(function(id){
+              var x = gsrc[id];
+              return x ? ('<a href="' + esc(x.url || '#') + '" target="_blank" rel="noopener">' +
+                esc(x.title || ('来源 ' + id)) + '</a>') : ('来源 ' + id);
+            }).join('、');
+            parts.push('<tr><td><b>' + esc(site.name) + '</b><br><span style="font-size:10px;color:#9fb0c2">' +
+              esc(site.path || '') + '</span></td><td>' + esc(site.role || '') + '</td><td>' +
+              esc(String(site.n || '')) + '</td><td>' + esc(site.basis || '') +
+              (srcs ? ('<br><span style="font-size:10px;color:#9fb0c2">出处：' + srcs + '</span>') : '') +
+              '</td></tr>');
+          });
+          parts.push('</table>');
+        }
+
+        /* 铺开点：逐条列没有意义（数百条同源），按省聚合并说明依据 */
+        if (spreadSites.length){
+          var byProv = {};
+          spreadSites.forEach(function(x){
+            var k = x.province || (PLACES[x.place] && (PLACES[x.place].path||'').split('/')[0]) || '其他';
+            (byProv[k] = byProv[k] || []).push(x);
+          });
+          var pkeys = Object.keys(byProv).sort(function(a,b){ return byProv[b].length - byProv[a].length; });
+          parts.push('<p style="font-size:11.5px;color:#9fb0c2">省内铺开 ' + spreadSites.length +
+            ' 处，遍及 ' + pkeys.length + ' 个省级单元。铺开依据是官方「该姓在该省有分布」的结论本身，' +
+            '<b>不是逐市统计</b>；因此这些点的依据是同一条省级结论，' +
+            '画面上用<b>更小更淡的圆点</b>表示，与有具体史料记载的聚居地区分。' +
+            '点数的差别表示该省该姓的证据强度（第一大姓 / 人口最多的省份 / 省内有分布），不是人口数。' +
+            '<b>本模型刻意不按人口密度加权</b>——按人口摊点实质等于输出未经审核的人口分布专题图。</p>');
+          parts.push('<table><tr><th>省级单元</th><th>铺开处数</th><th>证据强度</th><th>最高点数</th><th>覆盖的市县</th></tr>');
+          pkeys.forEach(function(pn){
+            var lst = byProv[pn], mx = 0, tier = '';
+            lst.forEach(function(x){ if (x.n > mx){ mx = x.n; tier = x.tier || ''; } });
+            var names = lst.map(function(x){ return x.name; });
+            var show = names.slice(0, 12).join('、');
+            if (names.length > 12) show += ' 等 ' + names.length + ' 处';
+            parts.push('<tr><td><b>' + esc(pn) + '</b></td><td>' + lst.length + '</td><td>' +
+              esc(tierLabel(tier)) + '</td><td>' + esc(String(mx)) + '</td><td>' +
+              '<span style="font-size:10.5px;color:#9fb0c2">' + esc(show) + '</span></td></tr>');
+          });
+          parts.push('</table>');
+        }
+      });
+      var gsrcList = gc.sources || [];
+      if (gsrcList.length){
+        parts.push('<h4>本姓引用文献（' + gsrcList.length + ' 条）</h4>');
+        gsrcList.forEach(function(x){
+          parts.push('<div class="src"><span class="tag">' + esc(x.tier || '文献') + '</span>' +
+            '<b>' + esc(x.title || '') + '</b> · ' + esc(x.publisher || '') +
+            (x.date ? (' · ' + esc(x.date)) : '') +
+            (x.url ? (' · <a href="' + esc(x.url) + '" target="_blank" rel="noopener">打开链接</a>') : '') +
+            (x.quote ? ('<br><span style="color:#cdd7e2">原文：' + esc(x.quote) + '</span>') : '') +
+            '</div>');
+        });
+      }
+    }
+
+    var valFacts = own.filter(function(f){ return f.value; });
+    if (valFacts.length){
+      parts.push('<h3>五、已公开的具体人数（口径不统一，不可合并成密度图）</h3>');
+      parts.push('<table><tr><th>地区</th><th>数值</th><th>口径</th><th>来源</th></tr>');
+      valFacts.forEach(function(f){
+        parts.push('<tr><td>' + esc(f.region) + '</td><td><b>' + esc(f.value) + '</b></td><td>' +
+          esc(f.metric || '') + '</td><td>' + esc((byId[f.sourceId] || {}).publisher || '') + '</td></tr>');
+      });
+      parts.push('</table>');
+      parts.push('<p style="font-size:11px;color:#9fb0c2">这些数字来自不同年份、不同发布机构的七普常住人口统计，彼此口径不同，也不能与公安部户籍口径拼接。</p>');
+    }
+
+    /* ---------- 可考记录证据层：逐点溯源 + 数据补齐指引 ---------- */
+    parts.push('<h3>六、可考记录证据层 · ' + esc(s.char) + '姓打样</h3>');
+    var EM = EVID.meta || {}, ESEM = EM.semantics || {};
+    if (EM.hardLimit) parts.push('<div class="warn">' + esc(EM.hardLimit) + '</div>');
+    parts.push('<ul>');
+    ['point','dotCount','blank','notPopulation','noInterpolation'].forEach(function(k){
+      if (ESEM[k]) parts.push('<li><b>' + esc(k) + '：</b>' + esc(ESEM[k]) + '</li>');
+    });
+    parts.push('</ul>');
+    if (!hasEvidence(s.char)){
+      parts.push('<p><b>' + esc(s.char) + '姓尚未接入证据层。</b>本层逐姓展开，未接入的姓不会拿示意骨架冒充可考记录。</p>');
+    } else {
+      var evS = EVID.surnames[s.char] || { periods:{} };
+      parts.push('<table><tr><th>断面</th><th>状态</th><th>证据点</th><th>留白原因 / 说明</th></tr>');
+      periods.forEach(function(pd){
+        var ep = evS.periods[pd.id] || {}, cnt = 0;
+        (ep.places || []).forEach(function(pl){ cnt += (pl.evidence || []).length; });
+        parts.push('<tr><td>' + esc(pd.label) + '</td><td>' + esc(ep.status || '—') +
+          '</td><td><b>' + cnt + '</b></td><td>' + esc(ep.blankReason || ep.note || '—') + '</td></tr>');
+      });
+      parts.push('</table>');
+      Object.keys(evS.periods).forEach(function(pid){
+        var ep = evS.periods[pid] || {};
+        (ep.places || []).forEach(function(pl){
+          var plc = DATA.places[pl.place] || {};
+          (pl.evidence || []).forEach(function(e){
+            var esrc = byId[e.sourceId] || {};
+            parts.push('<div class="fact"><div class="txt">' + esc(plc.name || pl.place) +
+              ' · ' + esc(pl.represent || '') + '：' + esc(e.text) + '</div><div class="meta">' +
+              '<span class="tag">证据</span>' + esc(e.scope || '') + ' · 来源 <b>' +
+              esc(esrc.title || e.sourceId) + '</b>（' + esc(esrc.publisher || '') + '，' +
+              esc(esrc.date || '') + '） · factId ' + esc(e.factId || '') +
+              (esrc.url ? '<br>' + linkOrText(esrc.url) : '') + '</div></div>');
+          });
+        });
+      });
+    }
+    var acq = EVID.acquisition || [];
+    if (acq.length){
+      parts.push('<h4>数据补齐指引（真实入口，不是本页已拿到的数据）</h4>');
+      if (EM.acquisitionStatus)
+        parts.push('<p style="font-size:11px;color:#9fb0c2">' + esc(EM.acquisitionStatus) + '</p>');
+      acq.forEach(function(a){
+        parts.push('<div class="src"><span class="tag">步骤 ' + esc(a.step) + '</span><b>' +
+          esc(a.target) + '</b><br>做法：' + esc(a.what) + '<br>入口：' + linkOrText(a.where) +
+          '<br>当前障碍：' + esc(a.blocker) + '</div>');
+      });
+    }
+    var evSrc = EVID.sources || [];
+    if (evSrc.length){
+      parts.push('<h4>证据层新增来源（可逐条打开核对）</h4>');
+      evSrc.forEach(function(x){
+        parts.push('<div class="src"><span class="tag">' + esc(x.tier || '') + '</span><b>' +
+          esc(x.title) + '</b> · ' + esc(x.publisher) + ' · ' + esc(x.date) +
+          '<br>口径：' + esc(x.scope) + '<br>原文摘录：' + esc(x.quote) +
+          (x.note ? '<br>注：' + esc(x.note) : '') +
+          (x.citation ? '<br>引用格式：' + esc(x.citation) : '') +
+          '<br>' + linkOrText(x.url) + '</div>');
+      });
+    }
+
+    parts.push('<h3>七、能力边界（正式成片前必读）</h3><ul>');
+    limits.forEach(function(x){ parts.push('<li>' + esc(x) + '</li>'); });
+    parts.push('</ul>');
+
+    parts.push('<h3>八、来源清单（可逐条打开核对）</h3>');
+    srcList.forEach(function(x){
+      parts.push('<div class="src"><span class="tag">' + esc(x.tier || '') + '</span><b>' + esc(x.title) +
+        '</b> · ' + esc(x.publisher) + ' · ' + esc(x.date) +
+        '<br>口径：' + esc(x.scope) +
+        '<br>原文摘录：' + esc(x.quote) +
+        (x.note ? '<br>注：' + esc(x.note) : '') +
+        '<br><a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(x.url) + '</a></div>');
+    });
+
+    $('sourcesBody').innerHTML = parts.join('');
+    $('sources').classList.add('on');
+  }
+
+  /* 控件绑定集中在一个函数里，供脚本开头提前调用 */
+  function bindControls(){
+    /* 生长动画开关：关闭后每期直接呈现终态，便于逐帧截图导出 */
+    $('btnAnim').textContent = '生长动画 ' + (state.anim ? '开' : '关');
+    $('btnAnim').classList.toggle('act', state.anim);
+    $('btnAnim').addEventListener('click', function(){
+      state.anim = !state.anim;
+      $('btnAnim').textContent = '生长动画 ' + (state.anim ? '开' : '关');
+      $('btnAnim').classList.toggle('act', state.anim);
+      if (state.style === 'bloom' || state.style === 'evidence' || state.style === 'spread') render();
+    });
+    $('btnBase').textContent = '基底层 ' + (baseLayerOn ? '开' : '关');
+    $('btnBase').classList.toggle('act', baseLayerOn);
+    $('btnBase').addEventListener('click', function(){
+      baseLayerOn = !baseLayerOn;
+      $('btnBase').textContent = '基底层 ' + (baseLayerOn ? '开' : '关');
+      $('btnBase').classList.toggle('act', baseLayerOn);
+      redrawDots();
+    });
+    $('btnPlay').addEventListener('click', play);
+    $('btnPrev').addEventListener('click', function(){ stop(); state.pIdx=Math.max(0,state.pIdx-1); render(); });
+    $('btnNext').addEventListener('click', function(){ stop(); state.pIdx=Math.min(periods.length-1,state.pIdx+1); render(); });
+    $('btnSpeed').addEventListener('click', function(){
+      var opts=[1,1.5,2], i=(opts.indexOf(state.speed)+1)%opts.length; setSpeed(opts[i]);
+    });
+    $('btnCinema').addEventListener('click', function(){ toggleCinema(); });
+    $('btnExitCinema').addEventListener('click', function(){ toggleCinema(false); });
+    $('btnExportMode').addEventListener('click', function(){
+      var on = $('app').classList.toggle('export');
+      $('btnExportMode').textContent = '出片模式 ' + (on ? '开' : '关');
+      $('btnExportMode').classList.toggle('act', on);
+      setTimeout(function(){ try{ if(map) map.resize(); }catch(e){} redrawDots(); }, 60);
+    });
+    $('btnInfo').addEventListener('click', function(){ $('modal').classList.add('on'); });
+    $('btnClose').addEventListener('click', function(){ $('modal').classList.remove('on'); });
+    $('modal').addEventListener('click', function(e){ if(e.target===$('modal')) $('modal').classList.remove('on'); });
+    $('btnCompare').addEventListener('click', renderCompare);
+    $('btnCompareClose').addEventListener('click', function(){ $('compare').classList.remove('on'); });
+    $('compare').addEventListener('click', function(e){ if(e.target===$('compare')) $('compare').classList.remove('on'); });
+    $('btnSources').addEventListener('click', renderSources);
+    $('btnSourcesClose').addEventListener('click', function(){ $('sources').classList.remove('on'); });
+    $('sources').addEventListener('click', function(e){ if(e.target===$('sources')) $('sources').classList.remove('on'); });
+
+    $('btnExport').addEventListener('click', function(){
+      var s=DATA.surnames[state.sIdx], used={};
+      s.timeline.forEach(function(f){
+        f.points.forEach(function(p){ if(DATA.places[p.place]) used[p.place]=DATA.places[p.place]; });
+        (f.routes||[]).forEach(function(r){ if(DATA.places[r.from])used[r.from]=DATA.places[r.from]; if(DATA.places[r.to])used[r.to]=DATA.places[r.to]; });
+      });
+      var payload={ meta:DATA.meta, places:used, surname:s, sources:SRC,
+                    evidence: (EVID.surnames[s.char] || null),
+                    genealogy: (GEN.surnames[s.char] || null) };
+      var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+      var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+      a.download=s.char+'姓_数据包.json'; a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+    });
+
+    /* 逐帧导出：每个姓 × 每个朝代一帧，含该帧每个点的坐标与依据。
+       外部工具可直接据此渲染视频，或配合 ?anim=0 逐帧截图。 */
+    $('btnFrames').addEventListener('click', function(){
+      var frames = [];
+      var chars = state.style === 'overview'
+        ? Object.keys(GEN.surnames)
+        : [DATA.surnames[state.sIdx].char];
+      chars.forEach(function(ch){
+        var sIdx = DATA.surnames.map(function(x){return x.char;}).indexOf(ch);
+        if (sIdx < 0) return;
+        SPREAD_PERIODS.forEach(function(pid, pi){
+          var prevIdx = DATA.surnames[sIdx].timeline.indexOf(DATA.surnames[sIdx].timeline[pi]);
+          var st = (function(){
+            var keep = state.sIdx; state.sIdx = sIdx;
+            var r = spreadState(pi); state.sIdx = keep; return r;
+          })();
+          var dots = [];
+          Object.keys(st).forEach(function(ad){
+            var q = st[ad], p = PLACES[ad];
+            if (!p) return;
+            var list = spreadCandidates(ch, ad);
+            list.forEach(function(pt, i){
+              var a = Math.min(1, Math.max(0, q.n - pt.thr));
+              if (a <= 0.02) return;
+              dots.push({
+                lat: +(p.lat + pt.oy*q.spread*0.85).toFixed(6),
+                lng: +(p.lng + pt.ox*q.spread).toFixed(6),
+                alpha: +a.toFixed(3),
+                place: ad, name: p.name, path: p.path,
+                role: q.role, basis: q.basis, source_ids: q.source_ids
+              });
+            });
+          });
+          frames.push({
+            surname: ch, period_id: pid,
+            period_index: pi,
+            period_label: (DATA.surnames[sIdx].timeline[pi] || {}).title || pid,
+            era: (periods[pi] || {}).label || '',
+            site_count: Object.keys(st).length,
+            dot_count: dots.length,
+            dots: dots,
+            caption: (DATA.surnames[sIdx].timeline[pi] || {}).caption || '',
+            summary: densitySummary(DATA.surnames[sIdx], pi)
+          });
+        });
+      });
+      var payload = {
+        meta: {
+          exportedAt: new Date().toISOString(),
+          style: state.style,
+          pointSemantics: '点的数量表示该地点该姓「有聚居记载」的证据等级与持续朝代数，不是人口数。',
+          baseLayer: '全国 ' + Object.keys(PLACES).length + ' 个行政单元中心点，与姓无关，仅作有人区底纹',
+          usage: '每一帧对应一个姓的一个朝代；坐标可直接用于外部视频渲染。'
+        },
+        periods: periods,
+        frames: frames
+      };
+      var blob = new Blob([JSON.stringify(payload)], {type:'application/json;charset=utf-8'});
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = (state.style === 'overview' ? '百家姓叠加总览' : DATA.surnames[state.sIdx].char + '姓') + '_逐帧数据.json';
+      a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+    });
+
+    document.addEventListener('keydown', function(e){
+      if(e.code==='Space'){ e.preventDefault(); play(); }
+      if(e.code==='ArrowRight'){ stop(); state.pIdx=Math.min(periods.length-1,state.pIdx+1); render(); }
+      if(e.code==='ArrowLeft'){ stop(); state.pIdx=Math.max(0,state.pIdx-1); render(); }
+      if(e.code==='Escape'){ $('modal').classList.remove('on'); $('compare').classList.remove('on'); $('sources').classList.remove('on'); toggleCinema(false); }
+      var styleKey = {'Digit1':'spread','Digit2':'bloom','Digit3':'heat','Digit4':'heatFine','Digit5':'nodes','Digit6':'routes','Digit7':'evidence'}[e.code];
+      if(styleKey){ state.style=styleKey; render(); }
+    });
+    window.addEventListener('resize', function(){ try{ if(map) map.resize(); }catch(e){} });
+  }
+
+  exposeAtlas();
+})();
+</script>
+</body>
+</html>

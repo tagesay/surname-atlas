@@ -1,0 +1,37 @@
+# ===== 依赖与缓存 =====
+node_modules/
+__pycache__/
+*.pyc
+
+# ===== 大型非交付目录 =====
+_ci_tools/
+cloudfbase-input/
+research/
+frames_holdsample/
+
+# ===== 生成产物（由模板 + 数据重建）=====
+index.html
+cinema.html
+*.genie
+bgm/
+h5data/
+
+# ===== 默认排除所有下划线开头的调试/临时/回滚文件 =====
+_*/
+_*
+# 但恢复数据输入文件（构建链需要）
+!_dv_*.json
+
+# ===== 其他临时 / 调试产物 =====
+*.log
+*.png
+*.bak
+atlas_check.html
+preview_mp.html
+
+# ===== WorkBuddy 内部配置（含分享码等，勿公开）=====
+.workbuddy/
+
+# ===== 系统 =====
+.DS_Store
+Thumbs.db
