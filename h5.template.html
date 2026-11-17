@@ -344,6 +344,7 @@ window.__H5_CONFIG__ = {
   };
   var BASE_MS = 550;         /* 每格基础停留（原 1250，过慢导致首屏像卡住） */
   var EVENT_MS = 380;        /* 每条事件额外停留，方便阅读（与降速视频同理） */
+  var PACE_SCALE = 1.2;      /* 全局放慢 20%（读者反馈偏快）：每格停留统一乘此系数 */
   var map=null, dotCanvas=null, dotCtx=null, dotW=0, dotH=0, dotDPR=1;
   var started=false, clockId=0;
 
@@ -448,6 +449,7 @@ window.__H5_CONFIG__ = {
       var evc=eventsAt(i).length;
       var ms=BASE_MS + EVENT_MS*evc;
       if(evc>0) ms*=1.1;            /* 有迁徙事件的世纪延长 10%，便于阅读 */
+      ms*=PACE_SCALE;               /* 全局放慢 20%，acc 与 totalMs 同步放大 */
       total+=ms; state.acc.push(total);
     }
     state.totalMs=total;
@@ -937,11 +939,9 @@ window.__H5_CONFIG__ = {
       h+='</ul>';
     }
     h+='</div>';
-    h+='<div class="infoCard"><h3>数据来源</h3><p class="note">'
-      +esc((C.listMeta&&C.listMeta.coverage)||'')+'</p>'
-      +'<p class="note">《百家姓》全文 503 姓（442 单姓 + 61 复姓）、现代常见姓氏排名 1—600、'
-      +'公安部《全国姓名报告》系列、台湾省内政部户政司《全国姓名统计分析》并列展示，'
-      +'不同口径不相加、不互相校验。</p></div>';
+    h+='<div class="infoCard"><h3>姓氏来源</h3><p class="note">'
+      +'以《百家姓》全文 503 姓（442 单姓 + 61 复姓）与现代常见姓氏 1—600 名取并集，'
+      +'覆盖常见单姓与多数通行复姓。</p></div>';
     $('infoBody').innerHTML=h;
   }
 
